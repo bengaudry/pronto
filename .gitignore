@@ -5,3 +5,4 @@
 *.d
 *.o
 test/**/main
+.pronto/
