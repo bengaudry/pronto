@@ -1,7 +1,7 @@
 mod helpers;
 
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::helpers::cli::build_dir::create_build_dir_if_not_exists;
 use crate::helpers::cli::timestamps::is_file_newer;

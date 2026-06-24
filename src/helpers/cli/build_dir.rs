@@ -4,11 +4,6 @@ use std::path::{Path, PathBuf};
 
 pub const BUILD_DIR: &str = ".pronto";
 
-pub fn build_dir_exists() -> bool {
-    let build_dir: &Path = Path::new(BUILD_DIR);
-    build_dir.exists() && build_dir.is_dir()
-}
-
 pub fn create_build_dir_if_not_exists() -> Result<PathBuf, Error> {
     let build_dir: &Path = Path::new(BUILD_DIR);
     if build_dir.exists() {
