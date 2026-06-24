@@ -1,1 +1,7 @@
+# Rust files
 /target
+
+# C files
+*.d
+*.o
+test/**/main
