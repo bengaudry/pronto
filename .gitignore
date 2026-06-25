@@ -9,3 +9,7 @@ test/**/main
 
 # Build files
 test/**/main
+
+# IDE files
+.idea/
+.vscode/
