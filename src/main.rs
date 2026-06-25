@@ -232,7 +232,9 @@ fn main() {
 
     let current_pronto_version = build::TAG;
     let latest_pronto_version = get_latest_version();
-    if latest_pronto_version.is_some() && latest_pronto_version.unwrap() != current_pronto_version {
+    if latest_pronto_version.is_some()
+        && latest_pronto_version.clone().unwrap() != current_pronto_version
+    {
         println!(
             "{}A new version is available! Run {}`pronto update`{}{} to install it.{}",
             YELLOW, BOLD, RESET, YELLOW, RESET
@@ -260,7 +262,14 @@ fn main() {
             println!("Pronto version: {}", current_pronto_version);
         }
         CliContext::Clean => { /* TODO */ }
-        CliContext::Update => update(),
+        CliContext::Update => {
+            if latest_pronto_version.is_some()
+                && current_pronto_version == latest_pronto_version.unwrap()
+            {
+                println!("Pronto already up to date.");
+            }
+            update()
+        }
         CliContext::Help => {
             print!("{}", HELP_TEXT);
         }
