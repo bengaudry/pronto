@@ -4,19 +4,17 @@ shadow!(build);
 mod helpers;
 
 use std::collections::HashSet;
-use std::{env, panic};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::{env, panic};
 
-
-use crate::helpers::cli::argparser::{parse_args, CliContext};
+use crate::helpers::cli::argparser::{CliContext, parse_args};
 use crate::helpers::cli::build_dir::create_build_dir_if_not_exists;
 use crate::helpers::cli::timestamps::is_file_newer;
 use crate::helpers::gcc::check_installation::check_gcc_installation;
 use crate::helpers::gcc::dependencies::Dependency;
 use crate::helpers::gcc::dependencies::analyzer::analyse_dot_d_file;
 use crate::helpers::gcc::runner::{generate_dot_o_and_dot_d, run_gcc_cmd};
-
 
 const RED: &str = "\x1b[31m";
 const BOLD: &str = "\x1b[1m";
@@ -32,11 +30,17 @@ fn setup_panic_messages() {
             println!("{}", s);
         }
 
-        println!("\nIf this persists, please open an issue on GitHub (https://github.com/bengaudry/pronto/issues/new).\n");
+        println!(
+            "\nIf this persists, please open an issue on GitHub (https://github.com/bengaudry/pronto/issues/new).\n"
+        );
     }));
 }
 
-fn compile_obj(target_path: PathBuf, build_path: PathBuf, visited: &mut HashSet<PathBuf>) -> Vec<String> {
+fn compile_obj(
+    target_path: PathBuf,
+    build_path: PathBuf,
+    visited: &mut HashSet<PathBuf>,
+) -> Vec<String> {
     if visited.contains(&target_path) {
         return Vec::new();
     }
@@ -72,10 +76,7 @@ fn compile_obj(target_path: PathBuf, build_path: PathBuf, visited: &mut HashSet<
             .expect("Invalid UTF-8")
             .to_string();
         objects.push(path_str);
-        println!(
-            "Compiling {}...",
-            target.to_str().unwrap()
-        )
+        println!("Compiling {}...", target.to_str().unwrap())
     } else {
         objects.push(target_file_o.to_str().expect("Invalid UTF-8").to_string());
         println!(
@@ -93,8 +94,11 @@ fn compile_obj(target_path: PathBuf, build_path: PathBuf, visited: &mut HashSet<
                 match dependency {
                     Dependency::Header { file, source_file } => {
                         if source_file.is_some() {
-                            objects
-                                .append(&mut compile_obj(source_file.unwrap(), build_path.clone(), visited));
+                            objects.append(&mut compile_obj(
+                                source_file.unwrap(),
+                                build_path.clone(),
+                                visited,
+                            ));
                         }
                     }
                     _ => {}
@@ -145,6 +149,31 @@ fn compile(target: String) -> PathBuf {
     return executable_path;
 }
 
+fn update() {
+    let curl_proc = Command::new("curl")
+            .args(["-sSfL", "https://raw.githubusercontent.com/bengaudry/pronto/refs/heads/master/scripts/install.sh"])
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn curl");
+
+    // 2. Start the sh process and set its stdin to capture curl's stdout
+    let sh_proc = Command::new("sh")
+        .stdin(curl_proc.stdout.unwrap()) // Take ownership of curl's stdout pipe
+        .output()
+        .expect("Failed to execute sh");
+
+    // 3. Print out result
+    if sh_proc.status.success() {
+        println!("Installation complete!");
+        println!("{}", String::from_utf8_lossy(&sh_proc.stdout));
+    } else {
+        eprintln!(
+            "Installation failed:\n{}",
+            String::from_utf8_lossy(&sh_proc.stderr)
+        );
+    }
+}
+
 fn main() {
     setup_panic_messages();
 
@@ -152,8 +181,10 @@ fn main() {
     let cli_context = parse_args(args).expect("");
 
     match cli_context {
-        CliContext::Compile {target} => { compile(target); },
-        CliContext::Run {target} => {
+        CliContext::Compile { target } => {
+            compile(target);
+        }
+        CliContext::Run { target } => {
             let executable_path = compile(target);
             println!("\n===== PROGRAM OUTPUT =====\n");
             let output = Command::new(format!("./{}", executable_path.to_str().unwrap()))
@@ -165,9 +196,12 @@ fn main() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 eprintln!("Program failed :\n{}", stderr);
             }
-        },
-        CliContext::Version => { println!("Pronto version: {}", build::TAG); }
-        CliContext::Clean => { /* TODO */ },
+        }
+        CliContext::Version => {
+            println!("Pronto version: {}", build::TAG);
+        }
+        CliContext::Clean => { /* TODO */ }
         CliContext::Help => { /* TODO */ }
+        CliContext::Update => update(),
     }
 }

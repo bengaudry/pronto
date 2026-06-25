@@ -9,7 +9,8 @@ pub enum CliContext {
     },
     Clean,
     Version,
-    Help
+    Help,
+    Update
 }
 
 pub fn parse_args(args: Vec<String>) -> Result<CliContext, Error> {
@@ -43,6 +44,8 @@ pub fn parse_args(args: Vec<String>) -> Result<CliContext, Error> {
             context = CliContext::Version;
         } else if first_arg == "clean" {
             context = CliContext::Clean;
+        } else if first_arg == "update" {
+            context = CliContext::Update;
         } else {
             return Err(Error::new(
             ErrorKind::InvalidInput,
