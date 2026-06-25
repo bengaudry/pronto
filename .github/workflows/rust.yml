@@ -1,22 +1,53 @@
-name: Rust
+name: Release
 
 on:
   push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+    tags:
+      - 'v*'
 
 env:
   CARGO_TERM_COLOR: always
+  BINARY_NAME: pronto
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
+  build-and-release:
+    name: Build for ${{ matrix.os }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            arch: x86_64
+            suffix: unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            arch: x86_64
+            suffix: apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            arch: aarch64
+            suffix: apple-darwin
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+      - uses: actions/checkout@v4
+
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build Release
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare Binary Asset
+        run: |
+          cd target/${{ matrix.target }}/release/
+          mv ${{ env.BINARY_NAME }} ${{ env.BINARY_NAME }}-${{ matrix.arch }}-${{ matrix.suffix }}
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}-${{ matrix.arch }}-${{ matrix.suffix }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -4,7 +4,6 @@
 # C files
 *.d
 *.o
-test/**/main
 .pronto/
 
 # Build files
