@@ -6,3 +6,6 @@
 *.o
 test/**/main
 .pronto/
+
+# Build files
+test/**/main

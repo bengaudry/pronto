@@ -1,15 +1,90 @@
 mod helpers;
 
+use std::collections::HashSet;
 use std::env;
-use std::fmt::format;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::helpers::cli::argparser::{CliCommand, parse_args};
 use crate::helpers::cli::build_dir::create_build_dir_if_not_exists;
 use crate::helpers::cli::timestamps::is_file_newer;
 use crate::helpers::gcc::check_installation::check_gcc_installation;
+use crate::helpers::gcc::dependencies::Dependency;
+use crate::helpers::gcc::dependencies::analyzer::analyse_dot_d_file;
 use crate::helpers::gcc::runner::{generate_dot_o_and_dot_d, run_gcc_cmd};
+
+fn compile_obj(target_path: PathBuf, build_path: PathBuf, visited: &mut HashSet<PathBuf>) -> Vec<String> {
+    if visited.contains(&target_path) {
+        return Vec::new();
+    }
+    visited.insert(target_path.clone());
+    let target = target_path.file_name().unwrap();
+
+    // Path to .o in .pronto dir
+    let target_path_in_build_dir = build_path.join(&target_path);
+    let target_file_o = target_path_in_build_dir.with_extension("o");
+    let target_file_d = target_path_in_build_dir.with_extension("d");
+
+    // Check if .o and .d already exists, and if the source .c file has been modified since
+    let mut is_newer = true;
+    if target_file_o.is_file() && target_file_d.is_file() {
+        match is_file_newer(target_path.to_path_buf(), target_file_o.clone()) {
+            Ok(newer_state) => is_newer = newer_state,
+            Err(_) => {
+                // TODO : Clean .pronto (corrupted) and retry
+            }
+        }
+    }
+
+    let mut objects: Vec<String> = Vec::new();
+
+    // if c file has been modified since .o has been created
+    if is_newer {
+        // path to generated .o in the .pronto folder
+        let object_file_path =
+            generate_dot_o_and_dot_d(target_path.to_path_buf(), build_path.to_path_buf())
+                .expect("Could not use gcc for target.");
+        let path_str = object_file_path
+            .to_str()
+            .expect("Invalid UTF-8")
+            .to_string();
+        objects.push(path_str);
+        println!(
+            "Compiling {}...",
+            target.to_str().unwrap()
+        )
+    } else {
+        objects.push(target_file_o.to_str().expect("Invalid UTF-8").to_string());
+        println!(
+            "{} has not changed, no need to recompile.",
+            target.to_str().unwrap()
+        )
+    }
+
+    // Analyse the .d file that has just been created, or already existed before
+    match analyse_dot_d_file(target_file_d) {
+        Ok(dependencies) => {
+            // println!("Dependencies : ");
+            for dependency in dependencies {
+                // println!("{}", dependency);
+                match dependency {
+                    Dependency::Header { file, source_file } => {
+                        if source_file.is_some() {
+                            objects
+                                .append(&mut compile_obj(source_file.unwrap(), build_path.clone(), visited));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Err(_) => {
+            // TODO : Handle error
+        }
+    }
+
+    objects
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -25,52 +100,20 @@ fn main() {
         }
 
         if !check_gcc_installation() {
-            panic!("gcc not found.")
+            panic!("gcc not available.")
         }
 
         // Create the .pronto dir at the cwd
         let build_path = create_build_dir_if_not_exists().unwrap_or_else(|err| {
             panic!("Could not create .pronto folder. Error : {}", err);
         });
-        println!("Build path {}\n", build_path.display());
+        // println!("Build path {}\n", build_path.display());
 
         // Convert arg into Path
         let target_path = Path::new(&target);
-        println!("Target path : {}\n", target_path.display());
+        // println!("Target path : {}\n", target_path.display());
 
-        // Path to .o in .pronto dir
-        let target_path_in_build_dir = build_path.join(&target_path);
-        let target_file_o = target_path_in_build_dir.with_extension("o");
-        let target_file_d = target_path_in_build_dir.with_extension("d");
-
-        // Check if .o and .d already exists
-        let mut is_newer = true;
-        if target_file_o.is_file() && target_file_d.is_file() {
-            match is_file_newer(target_path.to_path_buf(), target_file_o.clone()) {
-                Ok(newer_state) => is_newer = newer_state,
-                Err(_) => {
-                    // TODO : Clean .pronto (corrupted) and retry
-                }
-            }
-        }
-
-        let mut objects: Vec<String> = Vec::new();
-
-        // if c file has been modified since .o has been created
-        if is_newer {
-            // path to generated .o in the .pronto folder
-            let object_file_path = generate_dot_o_and_dot_d(target_path.to_path_buf(), build_path)
-                .expect("Could not use gcc for target.");
-            let path_str = object_file_path
-                .to_str()
-                .expect("Invalid UTF-8")
-                .to_string();
-            objects.push(path_str);
-            // TODO : recompile dependencies
-        } else {
-            objects.push(target_file_o.to_str().expect("Invalid UTF-8").to_string());
-            println!("{} has not changed, no need to recompile.\n", target)
-        }
+        let mut objects = compile_obj(target_path.to_path_buf(), build_path, &mut HashSet::new());
 
         // Build final executable
         let executable_path = target_path.with_extension("");
@@ -82,8 +125,8 @@ fn main() {
                 .to_string(),
         );
         run_gcc_cmd(objects).expect("Could not build executable");
-        println!("Built executable at path : {:?}", executable_path);
-        
+        println!("\nBuilt executable at path : {:?}", executable_path);
+
         if cli_context.command == CliCommand::Run {
             println!("Running program...\n");
             let output = Command::new(format!("./{}", executable_path.to_str().unwrap()))
@@ -97,5 +140,4 @@ fn main() {
             }
         }
     }
-
 }

@@ -6,5 +6,5 @@ pub fn check_gcc_installation() -> bool {
         .status()
         .expect("gcc command not found");
 
-    return check_cmd_status.success();
+    check_cmd_status.success()
 }
