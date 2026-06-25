@@ -23,20 +23,20 @@ const BOLD: &str = "\x1b[1m";
 const RESET: &str = "\x1b[0m";
 
 pub const HELP_TEXT: &str = concat!(
-"\x1b[1m\x1b[32mPronto\x1b[0m - A lightning-fast, zero-config build system for C projects.\n\n",
-"\x1b[1mUSAGE:\x1b[0m\n",
-"    pronto <filename.c>       Compile a specific C file and its dependencies\n",
-"    pronto run <filename.c>   Compile and immediately run the executable\n",
-"    pronto [COMMAND]\n\n",
-"\x1b[1mCOMMANDS:\x1b[0m\n",
-"    run                       Compile and execute the entry C target\n",
-"    clean                     Remove the .pronto build directory and cached artifacts\n",
-"    update                    Download and install the latest version via the official script\n",
-"    help, -h, --help          Print this help infrastructure information\n",
-"    -v, --version             Print the compiled Pronto version details\n\n",
-"\x1b[1mEXAMPLES:\x1b[0m\n",
-"    pronto src/main.c\n",
-"    pronto run main.c\n"
+    "\x1b[1m\x1b[32mPronto\x1b[0m - A lightning-fast, zero-config build system for C projects.\n\n",
+    "\x1b[1mUSAGE:\x1b[0m\n",
+    "    pronto <filename.c>       Compile a specific C file and its dependencies\n",
+    "    pronto run <filename.c>   Compile and immediately run the executable\n",
+    "    pronto [COMMAND]\n\n",
+    "\x1b[1mCOMMANDS:\x1b[0m\n",
+    "    run                       Compile and execute the entry C target\n",
+    "    clean                     Remove the .pronto build directory and cached artifacts\n",
+    "    update                    Download and install the latest version via the official script\n",
+    "    help, -h, --help          Print this help infrastructure information\n",
+    "    -v, --version             Print the compiled Pronto version details\n\n",
+    "\x1b[1mEXAMPLES:\x1b[0m\n",
+    "    pronto src/main.c\n",
+    "    pronto run main.c\n"
 );
 
 fn setup_panic_messages() {
@@ -111,7 +111,10 @@ fn compile_obj(
             for dependency in dependencies {
                 // println!("{}", dependency);
                 match dependency {
-                    Dependency::Header { file: _, source_file } => {
+                    Dependency::Header {
+                        file: _,
+                        source_file,
+                    } => {
                         if source_file.is_some() {
                             objects.append(&mut compile_obj(
                                 source_file.unwrap(),
@@ -168,6 +171,34 @@ fn compile(target: String) -> PathBuf {
     return executable_path;
 }
 
+fn get_latest_version() -> Option<String> {
+    // We fetch the latest release page and configure curl to follow redirects (-L)
+    // and only output the final redirected URL (-w) while silencing the output (-o)
+    let output = Command::new("curl")
+        .args([
+            "-sI",
+            "-L",
+            "-w",
+            "%{url_effective}",
+            "-o",
+            "/dev/null",
+            "https://github.com/bengaudry/pronto/releases/latest",
+        ])
+        .output();
+
+    if let Ok(out) = output {
+        if out.status.success() {
+            let url = String::from_utf8_lossy(&out.stdout);
+            // The URL looks like: https://github.com/bengaudry/pronto/releases/tag/v1.1.0
+            // We split by the last slash to isolate the tag "v1.1.0"
+            if let Some(tag) = url.trim().split('/').last() {
+                return Some(tag.to_string());
+            }
+        }
+    }
+    None
+}
+
 fn update() {
     let curl_proc = Command::new("curl")
             .args(["-sSfL", "https://raw.githubusercontent.com/bengaudry/pronto/refs/heads/master/scripts/install.sh"])
@@ -199,8 +230,19 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let cli_context = parse_args(args).expect("");
 
+    let current_pronto_version = build::TAG;
+    let latest_pronto_version = get_latest_version();
+    if latest_pronto_version.is_some() && latest_pronto_version.unwrap() != current_pronto_version {
+        println!(
+            "{}A new version is available! Run {}`pronto update`{}{} to install it.{}",
+            YELLOW, BOLD, RESET, YELLOW, RESET
+        )
+    }
+
     match cli_context {
-        CliContext::Compile { target } => { compile(target); }
+        CliContext::Compile { target } => {
+            compile(target);
+        }
         CliContext::Run { target } => {
             let executable_path = compile(target);
             println!("\n===== PROGRAM OUTPUT =====\n");
@@ -215,10 +257,12 @@ fn main() {
             }
         }
         CliContext::Version => {
-            println!("Pronto version: {}", build::TAG);
+            println!("Pronto version: {}", current_pronto_version);
         }
         CliContext::Clean => { /* TODO */ }
         CliContext::Update => update(),
-        CliContext::Help => { print!("{}", HELP_TEXT); }
+        CliContext::Help => {
+            print!("{}", HELP_TEXT);
+        }
     }
 }
