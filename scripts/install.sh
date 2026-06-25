@@ -2,7 +2,7 @@
 set -e
 
 # Configuration
-REPO="your_username/your_project_name"
+REPO="bengaudry/pronto"
 BINARY_NAME="pronto"
 
 echo "Checking system compatibility..."

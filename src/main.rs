@@ -1,7 +1,7 @@
 mod helpers;
 
 use std::collections::HashSet;
-use std::env;
+use std::{env, panic};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -12,6 +12,24 @@ use crate::helpers::gcc::check_installation::check_gcc_installation;
 use crate::helpers::gcc::dependencies::Dependency;
 use crate::helpers::gcc::dependencies::analyzer::analyse_dot_d_file;
 use crate::helpers::gcc::runner::{generate_dot_o_and_dot_d, run_gcc_cmd};
+
+const RED: &str = "\x1b[31m";
+const BOLD: &str = "\x1b[1m";
+const RESET: &str = "\x1b[0m";
+
+fn setup_panic_messages() {
+    panic::set_hook(Box::new(|panic_info| {
+        println!("\n{}{}🛑 [Pronto Error]{}\n", RED, BOLD, RESET);
+
+        if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            println!("{}", s);
+        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+            println!("{}", s);
+        }
+
+        println!("\nIf this persists, please open an issue on GitHub (https://github.com/bengaudry/pronto/issues/new).\n");
+    }));
+}
 
 fn compile_obj(target_path: PathBuf, build_path: PathBuf, visited: &mut HashSet<PathBuf>) -> Vec<String> {
     if visited.contains(&target_path) {
@@ -87,6 +105,8 @@ fn compile_obj(target_path: PathBuf, build_path: PathBuf, visited: &mut HashSet<
 }
 
 fn main() {
+    setup_panic_messages();
+
     let args: Vec<String> = env::args().collect();
     let cli_context = parse_args(args).expect("");
 
@@ -128,7 +148,7 @@ fn main() {
         println!("\nBuilt executable at path : {:?}", executable_path);
 
         if cli_context.command == CliCommand::Run {
-            println!("Running program...\n");
+            println!("\n===== PROGRAM OUTPUT =====\n");
             let output = Command::new(format!("./{}", executable_path.to_str().unwrap()))
                 .output()
                 .expect("Failed to run program");
