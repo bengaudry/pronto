@@ -1,3 +1,6 @@
+use shadow_rs::shadow;
+shadow!(build);
+
 mod helpers;
 
 use std::collections::HashSet;
@@ -5,13 +8,15 @@ use std::{env, panic};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::helpers::cli::argparser::{CliCommand, parse_args};
+
+use crate::helpers::cli::argparser::{parse_args, CliContext};
 use crate::helpers::cli::build_dir::create_build_dir_if_not_exists;
 use crate::helpers::cli::timestamps::is_file_newer;
 use crate::helpers::gcc::check_installation::check_gcc_installation;
 use crate::helpers::gcc::dependencies::Dependency;
 use crate::helpers::gcc::dependencies::analyzer::analyse_dot_d_file;
 use crate::helpers::gcc::runner::{generate_dot_o_and_dot_d, run_gcc_cmd};
+
 
 const RED: &str = "\x1b[31m";
 const BOLD: &str = "\x1b[1m";
@@ -104,50 +109,52 @@ fn compile_obj(target_path: PathBuf, build_path: PathBuf, visited: &mut HashSet<
     objects
 }
 
+fn compile(target: String) -> PathBuf {
+    if !target.ends_with(".c") {
+        panic!("Expected a C file as argument.")
+    }
+
+    if !check_gcc_installation() {
+        panic!("gcc not available.")
+    }
+
+    // Create the .pronto dir at the cwd
+    let build_path = create_build_dir_if_not_exists().unwrap_or_else(|err| {
+        panic!("Could not create .pronto folder. Error : {}", err);
+    });
+    // println!("Build path {}\n", build_path.display());
+
+    // Convert arg into Path
+    let target_path = Path::new(&target);
+    // println!("Target path : {}\n", target_path.display());
+
+    let mut objects = compile_obj(target_path.to_path_buf(), build_path, &mut HashSet::new());
+
+    // Build final executable
+    let executable_path = target_path.with_extension("");
+    objects.push("-o".to_string());
+    objects.push(
+        executable_path
+            .to_str()
+            .expect("Could not convert path into string")
+            .to_string(),
+    );
+    run_gcc_cmd(objects).expect("Could not build executable");
+    println!("\nBuilt executable at path : {:?}", executable_path);
+
+    return executable_path;
+}
+
 fn main() {
     setup_panic_messages();
 
     let args: Vec<String> = env::args().collect();
     let cli_context = parse_args(args).expect("");
 
-    if (cli_context.command == CliCommand::Run || cli_context.command == CliCommand::Compile)
-        && cli_context.target != None
-    {
-        let target = cli_context.target.unwrap();
-
-        if !target.ends_with(".c") {
-            panic!("Expected a C file as argument.")
-        }
-
-        if !check_gcc_installation() {
-            panic!("gcc not available.")
-        }
-
-        // Create the .pronto dir at the cwd
-        let build_path = create_build_dir_if_not_exists().unwrap_or_else(|err| {
-            panic!("Could not create .pronto folder. Error : {}", err);
-        });
-        // println!("Build path {}\n", build_path.display());
-
-        // Convert arg into Path
-        let target_path = Path::new(&target);
-        // println!("Target path : {}\n", target_path.display());
-
-        let mut objects = compile_obj(target_path.to_path_buf(), build_path, &mut HashSet::new());
-
-        // Build final executable
-        let executable_path = target_path.with_extension("");
-        objects.push("-o".to_string());
-        objects.push(
-            executable_path
-                .to_str()
-                .expect("Could not convert path into string")
-                .to_string(),
-        );
-        run_gcc_cmd(objects).expect("Could not build executable");
-        println!("\nBuilt executable at path : {:?}", executable_path);
-
-        if cli_context.command == CliCommand::Run {
+    match cli_context {
+        CliContext::Compile {target} => { compile(target); },
+        CliContext::Run {target} => {
+            let executable_path = compile(target);
             println!("\n===== PROGRAM OUTPUT =====\n");
             let output = Command::new(format!("./{}", executable_path.to_str().unwrap()))
                 .output()
@@ -158,6 +165,9 @@ fn main() {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 eprintln!("Program failed :\n{}", stderr);
             }
-        }
+        },
+        CliContext::Version => { println!("Pronto version: {}", build::TAG); }
+        CliContext::Clean => { /* TODO */ },
+        CliContext::Help => { /* TODO */ }
     }
 }

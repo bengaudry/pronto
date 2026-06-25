@@ -1,16 +1,15 @@
 use std::{io::{Error, ErrorKind}};
 
-#[derive(PartialEq)]
-pub enum CliCommand {
-    Compile,
-    Run,
+pub enum CliContext {
+    Compile {
+        target: String,
+    },
+    Run {
+        target: String,
+    },
     Clean,
-    Help,
-}
-
-pub struct CliContext {
-    pub command: CliCommand,
-    pub target: Option<String>,
+    Version,
+    Help
 }
 
 pub fn parse_args(args: Vec<String>) -> Result<CliContext, Error> {
@@ -30,25 +29,20 @@ pub fn parse_args(args: Vec<String>) -> Result<CliContext, Error> {
         let first_arg = args[1].clone();
 
         if first_arg.ends_with(".c") {
-            context = CliContext {
-                command: CliCommand::Compile,
-                target: Some(first_arg),
+            context = CliContext::Compile {
+                target: first_arg,
             };
         } else if first_arg == "run" {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
                 "run expects at least one argument (the path of the c file to compile).",
             ));
-        } else if first_arg == "--help" {
-            context = CliContext {
-                command: CliCommand::Help,
-                target: None,
-            };
+        } else if first_arg == "-h" || first_arg == "--help" {
+            context = CliContext::Help;
+        } else if first_arg == "-v" || first_arg == "--version" {
+            context = CliContext::Version;
         } else if first_arg == "clean" {
-            context = CliContext {
-                command: CliCommand::Clean,
-                target: None,
-            };
+            context = CliContext::Clean;
         } else {
             return Err(Error::new(
             ErrorKind::InvalidInput,
@@ -56,9 +50,8 @@ pub fn parse_args(args: Vec<String>) -> Result<CliContext, Error> {
             ));
         }
     } else if args.len() == 3 && args[1] == "run" {
-        context = CliContext {
-            command: CliCommand::Run,
-            target: Some(args[2].clone()),
+        context = CliContext::Run {
+            target: args[2].clone(),
         };
     } else {
         return Err(Error::new(
