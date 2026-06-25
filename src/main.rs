@@ -267,6 +267,7 @@ fn main() {
                 && current_pronto_version == latest_pronto_version.unwrap()
             {
                 println!("Pronto already up to date.");
+                return;
             }
             update()
         }
