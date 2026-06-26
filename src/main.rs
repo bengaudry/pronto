@@ -2,12 +2,15 @@ use shadow_rs::shadow;
 shadow!(build);
 
 mod helpers;
+mod build_dir;
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, panic};
-
+use std::io::Error;
+use std::fs;
+use crate::build_dir::executables::{add_executable, get_executables_list_file_path, parse_executables};
 use crate::helpers::cli::argparser::{CliContext, parse_args};
 use crate::helpers::cli::build_dir::create_build_dir_if_not_exists;
 use crate::helpers::cli::timestamps::is_file_newer;
@@ -166,9 +169,10 @@ fn compile(target: String) -> PathBuf {
             .to_string(),
     );
     run_gcc_cmd(objects).expect("Could not build executable");
+    add_executable(executable_path.to_path_buf());
     println!("\nBuilt executable at path : {:?}", executable_path);
 
-    return executable_path;
+    executable_path
 }
 
 fn get_latest_version() -> Option<String> {
@@ -261,7 +265,11 @@ fn main() {
         CliContext::Version => {
             println!("Pronto version: {}", current_pronto_version);
         }
-        CliContext::Clean => { /* TODO */ }
+        CliContext::Clean => {
+            for exec_file_path in parse_executables() {
+                fs::remove_file(exec_file_path).unwrap();
+            }
+        }
         CliContext::Update => {
             if latest_pronto_version.is_some()
                 && current_pronto_version == latest_pronto_version.unwrap()
