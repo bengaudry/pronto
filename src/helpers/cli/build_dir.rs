@@ -2,7 +2,7 @@ use std::fs::create_dir;
 use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
 
-pub const BUILD_DIR: &str = ".pronto";
+pub const BUILD_DIR: &str = ".pronto/build";
 
 pub fn create_build_dir_if_not_exists() -> Result<PathBuf, Error> {
     let build_dir: &Path = Path::new(BUILD_DIR);
