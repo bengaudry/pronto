@@ -8,6 +8,7 @@ pub enum CliContext {
         target: String,
     },
     Clean,
+    FullClean,
     Version,
     Help,
     Update
@@ -44,6 +45,8 @@ pub fn parse_args(args: Vec<String>) -> Result<CliContext, Error> {
             context = CliContext::Version;
         } else if first_arg == "clean" {
             context = CliContext::Clean;
+        } else if first_arg == "full-clean" {
+            context = CliContext::FullClean;
         } else if first_arg == "update" {
             context = CliContext::Update;
         } else {

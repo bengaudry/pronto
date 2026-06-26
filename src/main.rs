@@ -1,5 +1,4 @@
-use shadow_rs::shadow;
-shadow!(build);
+shadow_rs::shadow!(build);
 
 mod helpers;
 mod build_dir;
@@ -8,9 +7,9 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{env, panic};
-use std::io::Error;
 use std::fs;
-use crate::build_dir::executables::{add_executable, get_executables_list_file_path, parse_executables};
+
+use crate::build_dir::executables::{add_executable, parse_executables, remove_executable};
 use crate::helpers::cli::argparser::{CliContext, parse_args};
 use crate::helpers::cli::build_dir::create_build_dir_if_not_exists;
 use crate::helpers::cli::timestamps::is_file_newer;
@@ -33,7 +32,8 @@ pub const HELP_TEXT: &str = concat!(
     "    pronto [COMMAND]\n\n",
     "\x1b[1mCOMMANDS:\x1b[0m\n",
     "    run                       Compile and execute the entry C target\n",
-    "    clean                     Remove the .pronto build directory and cached artifacts\n",
+    "    clean                     Remove the produced executables\n",
+    "    full-clean                Remove the .pronto build directory and the produced executables\n",
     "    update                    Download and install the latest version via the official script\n",
     "    help, -h, --help          Print this help infrastructure information\n",
     "    -v, --version             Print the compiled Pronto version details\n\n",
@@ -228,6 +228,16 @@ fn update() {
     }
 }
 
+fn clean_executables() {
+    for exec_file_path in parse_executables() {
+        if exec_file_path.exists() && exec_file_path.is_file() {
+            fs::remove_file(exec_file_path).unwrap();
+        } else {
+            remove_executable(exec_file_path);
+        }
+    }
+}
+
 fn main() {
     setup_panic_messages();
 
@@ -266,9 +276,11 @@ fn main() {
             println!("Pronto version: {}", current_pronto_version);
         }
         CliContext::Clean => {
-            for exec_file_path in parse_executables() {
-                fs::remove_file(exec_file_path).unwrap();
-            }
+            clean_executables();
+        },
+        CliContext::FullClean => {
+            clean_executables();
+            fs::remove_dir_all(Path::new(".pronto")).unwrap()
         }
         CliContext::Update => {
             if latest_pronto_version.is_some()

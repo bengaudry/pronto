@@ -33,9 +33,15 @@ pub fn add_executable(executable_path: PathBuf) {
     }
 
     if !executables_list.contains(&executable_path) {
-    executables_list.push(executable_path);
+        executables_list.push(executable_path);
         save_executables(executables_list);
     }
+}
+
+pub fn remove_executable(executable_path: PathBuf) {
+    let mut executables_list = parse_executables();
+    executables_list.retain(|p| p != &executable_path);
+    save_executables(executables_list);
 }
 
 pub fn save_executables(executables_list: Vec<PathBuf>) {
