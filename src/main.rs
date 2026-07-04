@@ -11,7 +11,8 @@ use std::fs;
 
 use crate::build_dir::executables::{add_executable, parse_executables, remove_executable};
 use crate::helpers::cli::argparser::{CliContext, parse_args};
-use crate::helpers::cli::build_dir::create_build_dir_if_not_exists;
+use crate::helpers::cli::build_dir::{create_build_dir_if_not_exists, PRONTO_DIR};
+use crate::helpers::cli::gitignore::add_file_to_local_gitignore;
 use crate::helpers::cli::timestamps::is_file_newer;
 use crate::helpers::gcc::check_installation::check_gcc_installation;
 use crate::helpers::gcc::dependencies::Dependency;
@@ -256,6 +257,16 @@ fn main() {
     }
 
     match cli_context {
+        CliContext::Init => {
+            println!("Initializing pronto project in current directory.");
+            if create_build_dir_if_not_exists().is_err() {
+                println!("A pronto project already exists here. Ending initialization.");
+                return;
+            }
+            add_file_to_local_gitignore(Path::new(PRONTO_DIR).to_path_buf()).unwrap_or_else(|_| {
+                println!("Could not add .pronto dir to gitignore file.");
+            });
+        }
         CliContext::Compile { target } => {
             compile(target);
         }

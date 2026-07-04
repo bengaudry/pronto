@@ -33,7 +33,7 @@ pub fn add_executable(executable_path: PathBuf) {
     }
 
     if !executables_list.contains(&executable_path) {
-        executables_list.push(executable_path);
+        executables_list.push(executable_path.canonicalize().unwrap());
         save_executables(executables_list);
     }
 }

@@ -1,6 +1,7 @@
 use std::{io::{Error, ErrorKind}};
 
 pub enum CliContext {
+    Init,
     Compile {
         target: String,
     },
@@ -34,6 +35,8 @@ pub fn parse_args(args: Vec<String>) -> Result<CliContext, Error> {
             context = CliContext::Compile {
                 target: first_arg,
             };
+        } else if first_arg == "init" {
+            context = CliContext::Init;
         } else if first_arg == "run" {
             return Err(Error::new(
                 ErrorKind::InvalidInput,

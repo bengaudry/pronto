@@ -4,7 +4,6 @@
 # C files
 *.d
 *.o
-.pronto/
 
 # Build files
 test/**/main
@@ -12,3 +11,6 @@ test/**/main
 # IDE files
 .idea/
 .vscode/
+
+# Pronto
+.pronto/
