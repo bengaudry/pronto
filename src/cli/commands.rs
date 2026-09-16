@@ -1,10 +1,10 @@
-use crate::{clean_executables, compile};
-use crate::helpers::cli::build_dir::{PRONTO_DIR, create_build_dir_in_curr_dir_if_not_exists};
-use crate::helpers::cli::gitignore::add_file_to_local_gitignore;
+use crate::build_dir::{clean_executables, compile};
+use crate::project::gitignore::add_file_to_local_gitignore;
 use crate::version::{get_pronto_version, has_update_available, update_pronto};
 use std::path::Path;
 use std::process::Command;
 use crate::cli::ui::HELP_TEXT;
+use crate::project::{PRONTO_DIR, create_build_dir_in_curr_dir_if_not_exists};
 
 pub fn handle_init() -> anyhow::Result<()> {
     println!("Initializing pronto project in current directory.");
