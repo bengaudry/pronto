@@ -82,11 +82,3 @@ pub fn ensure_build_dir(target_path: Option<&Path>) -> Result<PathBuf, Error> {
 
     Ok(build_dir)
 }
-
-pub fn create_build_dir_in_curr_dir_if_not_exists() -> Result<PathBuf, Error> {
-    ensure_build_dir(None)
-}
-
-pub fn create_build_dir_if_not_exists(target_path: Option<&Path>) -> Result<PathBuf, Error> {
-    ensure_build_dir(target_path)
-}

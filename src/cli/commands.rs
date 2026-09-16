@@ -1,14 +1,14 @@
-use crate::build_dir::{clean_executables, link_target};
+use crate::build_dir::{clean::clean_executables, linker::link_target};
 use crate::project::gitignore::ensure_ignored_in_gitignore;
 use crate::version::{get_pronto_version, is_update_available, update_pronto};
 use std::path::Path;
 use std::process::Command;
 use crate::cli::ui::HELP_TEXT;
-use crate::project::{PRONTO_DIR, create_build_dir_in_curr_dir_if_not_exists};
+use crate::project::{ensure_build_dir, PRONTO_DIR};
 
 pub fn handle_init() -> anyhow::Result<()> {
     println!("Initializing pronto project in current directory.");
-    if create_build_dir_in_curr_dir_if_not_exists().is_err() {
+    if ensure_build_dir(None).is_err() {
         println!("A pronto project already exists here. Ending initialization.");
     } else {
         ensure_ignored_in_gitignore(Path::new(PRONTO_DIR).to_path_buf()).unwrap_or_else(|_| {
