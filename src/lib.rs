@@ -1,8 +1,11 @@
 shadow_rs::shadow!(build);
 
-pub mod helpers;
 pub mod build_dir;
-pub mod versionning;
+pub mod cli;
+pub mod helpers;
+pub mod project;
+pub mod toolchain;
+pub mod version;
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -15,29 +18,6 @@ use crate::helpers::gcc::check_installation::check_gcc_installation;
 use crate::helpers::gcc::dependencies::Dependency;
 use crate::helpers::gcc::dependencies::analyzer::analyse_dot_d_file;
 use crate::helpers::gcc::runner::{generate_dot_o_and_dot_d, run_gcc_cmd};
-
-pub const RED: &str = "\x1b[31m";
-pub const GREEN: &str = "\x1b[32m";
-pub const YELLOW: &str = "\x1b[33m";
-pub const BOLD: &str = "\x1b[1m";
-pub const RESET: &str = "\x1b[0m";
-
-pub const HELP_TEXT: &str = concat!(
-    "\x1b[1m\x1b[32mPronto\x1b[0m - A lightning-fast, zero-config build system for C projects.\n\n",
-    "\x1b[1mUSAGE:\x1b[0m\n",
-    "    pronto <filename.c>       Compile a specific C file and its dependencies\n",
-    "    pronto run <filename.c>   Compile and immediately run the executable\n",
-    "    pronto [COMMAND]\n\n",
-    "\x1b[1mCOMMANDS:\x1b[0m\n",
-    "    run                       Compile and execute the entry C target\n",
-    "    clean                     Remove the produced executables (use --full to also remove .pronto)\n",
-    "    update                    Download and install the latest version via the official script\n",
-    "    help, -h, --help          Print this help infrastructure information\n",
-    "    -v, --version             Print the compiled Pronto version details\n\n",
-    "\x1b[1mEXAMPLES:\x1b[0m\n",
-    "    pronto src/main.c\n",
-    "    pronto run main.c\n"
-);
 
 fn compile_obj(
     target_path: PathBuf,

@@ -1,15 +1,9 @@
-use std::path::Path;
-use std::process::Command;
 use std::{env, panic};
 
-use pronto::clean_executables;
-use pronto::compile;
-use pronto::helpers::cli::argparser::{CliContext, parse_args};
-use pronto::helpers::cli::build_dir::create_build_dir_in_curr_dir_if_not_exists;
-use pronto::helpers::cli::build_dir::PRONTO_DIR;
-use pronto::helpers::cli::gitignore::add_file_to_local_gitignore;
-use pronto::versionning::{get_pronto_version, has_update_available, update_pronto};
-use pronto::{BOLD, HELP_TEXT, RED, RESET, YELLOW};
+use pronto::cli::args::{CliContext, parse_args};
+use pronto::cli::commands;
+use pronto::cli::ui::{BOLD, RED, RESET, YELLOW};
+use pronto::version::has_update_available;
 
 fn setup_panic_messages() {
     panic::set_hook(Box::new(|panic_info| {
@@ -32,51 +26,14 @@ fn try_main() -> anyhow::Result<()> {
     let cli_context = parse_args(args).map_err(|e| anyhow::anyhow!("{}", e))?;
 
     match cli_context {
-        CliContext::Init => {
-            println!("Initializing pronto project in current directory.");
-            if create_build_dir_in_curr_dir_if_not_exists().is_err() {
-                println!("A pronto project already exists here. Ending initialization.");
-                return Ok(());
-            }
-            add_file_to_local_gitignore(Path::new(PRONTO_DIR).to_path_buf()).unwrap_or_else(|_| {
-                println!("Could not add .pronto dir to gitignore file.");
-            });
-        }
-        CliContext::Compile { target } => {
-            compile(target)?;
-        }
-        CliContext::Run { target } => {
-            let executable_path = compile(target)?;
-            println!("\n===== PROGRAM OUTPUT =====\n");
-            let output = Command::new(format!("./{}", executable_path.to_str().unwrap()))
-                .output()
-                .map_err(|e| anyhow::anyhow!("Failed to run program: {}", e))?;
-
-            print!("{}", String::from_utf8_lossy(&output.stdout));
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                eprint!("Program failed :\n{}", stderr);
-            }
-        }
-        CliContext::Version => {
-            println!("Pronto version: {}", get_pronto_version());
-        }
-        CliContext::Clean => {
-            clean_executables(false)?;
-        }
-        CliContext::FullClean => {
-            clean_executables(true)?;
-        }
-        CliContext::Update => {
-            if !has_update_available() {
-                println!("Pronto already up to date.");
-                return Ok(());
-            }
-            update_pronto()
-        }
-        CliContext::Help => {
-            print!("{}", HELP_TEXT);
-        }
+        CliContext::Init => commands::handle_init()?,
+        CliContext::Compile { target } => commands::handle_compile(target)?,
+        CliContext::Run { target } => commands::handle_run(target)?,
+        CliContext::Version => commands::handle_version()?,
+        CliContext::Clean => commands::handle_clean()?,
+        CliContext::FullClean => commands::handle_full_clean()?,
+        CliContext::Update => commands::handle_update()?,
+        CliContext::Help => commands::handle_help()?,
     }
 
     Ok(())

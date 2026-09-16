@@ -54,8 +54,8 @@ pub fn parse_args(args: Vec<String>) -> Result<CliContext, Error> {
             context = CliContext::Update;
         } else {
             return Err(Error::new(
-            ErrorKind::InvalidInput,
-            format!("Unknown command `{}`", first_arg),
+                ErrorKind::InvalidInput,
+                format!("Unknown command `{}`", first_arg),
             ));
         }
     } else if args.len() == 3 && args[1] == "run" {
