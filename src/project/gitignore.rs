@@ -19,7 +19,7 @@ pub fn create_gitignore_in_current_dir_if_not_exists() -> Result<PathBuf, Error>
 
     Ok(gitignore_path.to_path_buf())
 }
-pub fn add_file_to_local_gitignore(file_path: PathBuf) -> Result<(), Error> {
+pub fn ensure_ignored_in_gitignore(file_path: PathBuf) -> Result<(), Error> {
     let gitignore_path = create_gitignore_in_current_dir_if_not_exists()?;
 
     let mut gitignore_file = OpenOptions::new()

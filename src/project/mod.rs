@@ -43,45 +43,50 @@ pub fn find_project_root(target_path: Option<&Path>) -> PathBuf {
     }
 }
 
-pub fn get_pronto_dir(target_path: Option<&Path>) -> PathBuf {
+pub fn resolve_pronto_dir(target_path: Option<&Path>) -> PathBuf {
     let project_root = find_project_root(target_path);
     project_root.join(PRONTO_DIR)
 }
 
-pub fn get_build_dir(target_path: Option<&Path>) -> PathBuf {
-    get_pronto_dir(target_path).join("build")
+pub fn resolve_build_dir(target_path: Option<&Path>) -> PathBuf {
+    resolve_pronto_dir(target_path).join("build")
+}
+
+/// Garantit que le répertoire de build `.pronto/build` existe.
+///
+/// Résout le chemin via `get_build_dir(target_path)` (donc via `find_project_root`),
+/// puis le crée récursivement si nécessaire. Idempotente : si le dossier existe déjà,
+/// le retourne sans erreur. Si un fichier non-dossier existe à cet emplacement,
+/// renvoie `ErrorKind::AlreadyExists`.
+///
+/// # Arguments
+/// * `target_path` - Chemin du fichier cible (ex: `Some(Path::new("src/main.c"))`)
+///   pour résoudre la racine projet, ou `None` pour résoudre depuis `"."` (cwd).
+///
+/// # Errors
+/// Renvoie une erreur si la création échoue (permissions, etc.) ou si le chemin
+/// existe mais n'est pas un dossier.
+pub fn ensure_build_dir(target_path: Option<&Path>) -> Result<PathBuf, Error> {
+    let build_dir = resolve_build_dir(target_path);
+    if build_dir.exists() {
+        if !build_dir.is_dir() {
+            return Err(Error::new(
+                ErrorKind::AlreadyExists,
+                format!("{} exists, but is not a folder.", build_dir.display()),
+            ));
+        }
+        return Ok(build_dir);
+    }
+
+    fs::create_dir_all(&build_dir)?;
+
+    Ok(build_dir)
 }
 
 pub fn create_build_dir_in_curr_dir_if_not_exists() -> Result<PathBuf, Error> {
-    let build_dir = Path::new(".").join(PRONTO_DIR).join("build");
-    if build_dir.exists() {
-        if !build_dir.is_dir() {
-            return Err(Error::new(
-                ErrorKind::AlreadyExists,
-                format!("{} exists, but is not a folder.", build_dir.display()),
-            ));
-        }
-        return Ok(build_dir.to_path_buf());
-    }
-
-    fs::create_dir_all(build_dir.clone())?;
-
-    Ok(build_dir.to_path_buf())
+    ensure_build_dir(None)
 }
 
 pub fn create_build_dir_if_not_exists(target_path: Option<&Path>) -> Result<PathBuf, Error> {
-    let build_dir = get_build_dir(target_path);
-    if build_dir.exists() {
-        if !build_dir.is_dir() {
-            return Err(Error::new(
-                ErrorKind::AlreadyExists,
-                format!("{} exists, but is not a folder.", build_dir.display()),
-            ));
-        }
-        return Ok(build_dir.to_path_buf());
-    }
-
-    fs::create_dir_all(build_dir.clone())?;
-
-    Ok(build_dir.to_path_buf())
+    ensure_build_dir(target_path)
 }

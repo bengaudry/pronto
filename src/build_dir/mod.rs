@@ -5,14 +5,14 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::build_dir::cache::is_file_newer;
-use crate::toolchain::gcc::check_gcc_installation;
-use crate::build_dir::dependencies::{Dependency, analyse_dot_d_file};
-use crate::toolchain::gcc::{generate_dot_o_and_dot_d, run_gcc_cmd};
+use crate::build_dir::cache::is_source_newer_than_artifact;
+use crate::toolchain::gcc::is_gcc_available;
+use crate::build_dir::dependencies::{Dependency, parse_dot_d_dependencies};
+use crate::toolchain::gcc::{compile_to_object_with_dependencies, invoke_gcc};
 use crate::project::{create_build_dir_if_not_exists, PRONTO_DIR};
-use crate::project::executables::{add_executable, parse_executables, remove_executable};
+use crate::project::executables::{add_executable, load_executables_registry, remove_executable};
 
-fn compile_obj(
+fn compile_object_recursively(
     target_path: PathBuf,
     build_path: PathBuf,
     visited: &mut HashSet<PathBuf>,
@@ -31,7 +31,7 @@ fn compile_obj(
     // Check if .o and .d already exists, and if the source .c file has been modified since
     let mut is_newer = true;
     if target_file_o.is_file() && target_file_d.is_file() {
-        match is_file_newer(target_path.to_path_buf(), target_file_o.clone()) {
+        match is_source_newer_than_artifact(target_path.to_path_buf(), target_file_o.clone()) {
             Ok(newer_state) => is_newer = newer_state,
             Err(_) => {
                 // TODO : Clean .pronto (corrupted) and retry
@@ -45,7 +45,7 @@ fn compile_obj(
     if is_newer {
         // path to generated .o in the .pronto folder
         let object_file_path =
-            generate_dot_o_and_dot_d(target_path.to_path_buf(), build_path.to_path_buf())
+            compile_to_object_with_dependencies(target_path.to_path_buf(), build_path.to_path_buf())
                 .expect("Could not use gcc for target.");
         let path_str = object_file_path
             .to_str()
@@ -62,7 +62,7 @@ fn compile_obj(
     }
 
     // Analyse the .d file that has just been created, or already existed before
-    match analyse_dot_d_file(target_file_d) {
+    match parse_dot_d_dependencies(target_file_d) {
         Ok(dependencies) => {
             for dependency in dependencies {
                 match dependency {
@@ -71,7 +71,7 @@ fn compile_obj(
                         source_file,
                     } => {
                         if source_file.is_some() {
-                            objects.append(&mut compile_obj(
+                            objects.append(&mut compile_object_recursively(
                                 source_file.unwrap(),
                                 build_path.clone(),
                                 visited,
@@ -90,12 +90,12 @@ fn compile_obj(
     objects
 }
 
-pub fn compile(target: String) -> anyhow::Result<PathBuf> {
+pub fn link_target(target: String) -> anyhow::Result<PathBuf> {
     if !target.ends_with(".c") {
         anyhow::bail!("Expected a C file as argument.");
     }
 
-    if !check_gcc_installation() {
+    if !is_gcc_available() {
         anyhow::bail!("gcc not available.");
     }
 
@@ -105,7 +105,7 @@ pub fn compile(target: String) -> anyhow::Result<PathBuf> {
 
     let target_path = Path::new(&target);
 
-    let mut objects = compile_obj(target_path.to_path_buf(), build_path, &mut HashSet::new());
+    let mut objects = compile_object_recursively(target_path.to_path_buf(), build_path, &mut HashSet::new());
 
     // Build final executable
     let executable_path = target_path.with_extension("");
@@ -116,7 +116,7 @@ pub fn compile(target: String) -> anyhow::Result<PathBuf> {
             .ok_or_else(|| anyhow::anyhow!("Could not convert path into string"))?
             .to_string(),
     );
-    run_gcc_cmd(objects).map_err(|e| anyhow::anyhow!("{}", e))?;
+    invoke_gcc(objects).map_err(|e| anyhow::anyhow!("{}", e))?;
     add_executable(executable_path.to_path_buf());
     println!("\nBuilt executable at path : {:?}", executable_path);
 
@@ -128,7 +128,7 @@ pub fn clean_executables(full: bool) -> anyhow::Result<()> {
         anyhow::bail!("The .pronto folder was not found. Run this command in the root directory where the .pronto folder is located.");
     }
 
-    for exec_file_path in parse_executables() {
+    for exec_file_path in load_executables_registry() {
         if exec_file_path.exists() && exec_file_path.is_file() {
             fs::remove_file(&exec_file_path)
                 .map_err(|e| anyhow::anyhow!("Failed to remove executable {:?}: {}", exec_file_path, e))?;

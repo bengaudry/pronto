@@ -3,9 +3,9 @@ use std::{env, panic};
 use pronto::cli::args::{CliContext, parse_args};
 use pronto::cli::commands;
 use pronto::cli::ui::{BOLD, RED, RESET, YELLOW};
-use pronto::version::has_update_available;
+use pronto::version::is_update_available;
 
-fn setup_panic_messages() {
+fn install_panic_hook() {
     panic::set_hook(Box::new(|panic_info| {
         println!("\n{}{}🛑 [Pronto Error]{}\n", RED, BOLD, RESET);
 
@@ -21,7 +21,7 @@ fn setup_panic_messages() {
     }));
 }
 
-fn try_main() -> anyhow::Result<()> {
+fn run() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
     let cli_context = parse_args(args).map_err(|e| anyhow::anyhow!("{}", e))?;
 
@@ -40,9 +40,9 @@ fn try_main() -> anyhow::Result<()> {
 }
 
 fn main() {
-    setup_panic_messages();
+    install_panic_hook();
 
-    if let Err(e) = try_main() {
+    if let Err(e) = run() {
         eprintln!("\n{}{}🛑 [Pronto Error]{}\n{:#}\n", RED, BOLD, RESET, e);
         eprintln!(
             "If this persists, please open an issue on GitHub (https://github.com/bengaudry/pronto/issues/new).\n"
@@ -50,7 +50,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    if has_update_available() {
+    if is_update_available() {
         println!(
             "{}A new version is available! Run {}`pronto update`{}{} to install it.{}",
             YELLOW, BOLD, RESET, YELLOW, RESET

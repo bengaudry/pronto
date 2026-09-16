@@ -1,6 +1,6 @@
-use crate::build_dir::{clean_executables, compile};
-use crate::project::gitignore::add_file_to_local_gitignore;
-use crate::version::{get_pronto_version, has_update_available, update_pronto};
+use crate::build_dir::{clean_executables, link_target};
+use crate::project::gitignore::ensure_ignored_in_gitignore;
+use crate::version::{get_pronto_version, is_update_available, update_pronto};
 use std::path::Path;
 use std::process::Command;
 use crate::cli::ui::HELP_TEXT;
@@ -11,7 +11,7 @@ pub fn handle_init() -> anyhow::Result<()> {
     if create_build_dir_in_curr_dir_if_not_exists().is_err() {
         println!("A pronto project already exists here. Ending initialization.");
     } else {
-        add_file_to_local_gitignore(Path::new(PRONTO_DIR).to_path_buf()).unwrap_or_else(|_| {
+        ensure_ignored_in_gitignore(Path::new(PRONTO_DIR).to_path_buf()).unwrap_or_else(|_| {
             println!("Could not add .pronto dir to gitignore file.");
         });
     }
@@ -20,12 +20,12 @@ pub fn handle_init() -> anyhow::Result<()> {
 }
 
 pub fn handle_compile(target: String) -> anyhow::Result<()> {
-    compile(target)?;
+    link_target(target)?;
     Ok(())
 }
 
 pub fn handle_run(target: String) -> anyhow::Result<()> {
-    let executable_path = compile(target)?;
+    let executable_path = link_target(target)?;
     println!("\n===== PROGRAM OUTPUT =====\n");
     let output = Command::new(format!("./{}", executable_path.to_str().unwrap()))
         .output()
@@ -56,7 +56,7 @@ pub fn handle_full_clean() -> anyhow::Result<()> {
 }
 
 pub fn handle_update() -> anyhow::Result<()> {
-    if !has_update_available() {
+    if !is_update_available() {
         println!("Pronto already up to date.");
         return Ok(());
     }

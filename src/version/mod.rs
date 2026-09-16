@@ -58,7 +58,7 @@ pub fn get_pronto_version() -> String {
     build::TAG.to_string()
 }
 
-pub fn has_update_available() -> bool {
+pub fn is_update_available() -> bool {
     let current_pronto_version = get_pronto_version();
     let latest_pronto_version = get_latest_version();
     latest_pronto_version.is_some()

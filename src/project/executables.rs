@@ -9,7 +9,7 @@ pub fn get_executables_list_file_path() -> PathBuf {
     Path::new(&format!("{}/{}", PRONTO_DIR, EXECUTABLES_FILENAME)).to_path_buf()
 }
 
-pub fn parse_executables() -> Vec<PathBuf> {
+pub fn load_executables_registry() -> Vec<PathBuf> {
     let fp = get_executables_list_file_path();
     if !fp.exists() || !fp.is_file() {
         return Vec::new();
@@ -29,7 +29,7 @@ pub fn parse_executables() -> Vec<PathBuf> {
 }
 
 pub fn add_executable(executable_path: PathBuf) {
-    let mut executables_list = parse_executables();
+    let mut executables_list = load_executables_registry();
 
     if !executable_path.is_file() {
         panic!("Could not find executable file at {}", executable_path.display());
@@ -37,17 +37,17 @@ pub fn add_executable(executable_path: PathBuf) {
 
     if !executables_list.contains(&executable_path) {
         executables_list.push(executable_path.canonicalize().unwrap());
-        save_executables(executables_list);
+        persist_executables_registry(executables_list);
     }
 }
 
 pub fn remove_executable(executable_path: PathBuf) {
-    let mut executables_list = parse_executables();
+    let mut executables_list = load_executables_registry();
     executables_list.retain(|p| p != &executable_path);
-    save_executables(executables_list);
+    persist_executables_registry(executables_list);
 }
 
-pub fn save_executables(executables_list: Vec<PathBuf>) {
+pub fn persist_executables_registry(executables_list: Vec<PathBuf>) {
     let fp = get_executables_list_file_path();
     if fp.exists() && !fp.is_file() {
         panic!(".pronto/executables.txt already exists, and is not a file");

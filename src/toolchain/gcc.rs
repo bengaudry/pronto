@@ -2,7 +2,7 @@ use std::io::{Error, ErrorKind};
 use std::path::PathBuf;
 use std::process::Command;
 
-pub fn check_gcc_installation() -> bool {
+pub fn is_gcc_available() -> bool {
     let check_cmd_status = Command::new("gcc")
         .arg("--version")
         .status()
@@ -11,7 +11,7 @@ pub fn check_gcc_installation() -> bool {
     check_cmd_status.success()
 }
 
-pub fn run_gcc_cmd(args: Vec<String>) -> Result<(), Error> {
+pub fn invoke_gcc(args: Vec<String>) -> Result<(), Error> {
     let output = Command::new("gcc").args(args).output()?;
 
     if !output.status.success() {
@@ -31,7 +31,7 @@ pub fn run_gcc_cmd(args: Vec<String>) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn generate_dot_o_and_dot_d(
+pub fn compile_to_object_with_dependencies(
     target_path: PathBuf,
     build_path: PathBuf,
 ) -> Result<PathBuf, Error> {
@@ -41,7 +41,7 @@ pub fn generate_dot_o_and_dot_d(
     let parent_dir = target_file_o.parent().expect("Could not get parent dir");
     std::fs::create_dir_all(parent_dir).expect("Could not create subdirectories");
 
-    return run_gcc_cmd(Vec::from([
+    return invoke_gcc(Vec::from([
         "-MMD".to_string(),
         target_path.to_str().expect("").to_string(),
         "-c".to_string(),
