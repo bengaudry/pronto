@@ -19,26 +19,30 @@ fn needs_recompilation(target_path: PathBuf, target_file_o: PathBuf, target_file
     is_newer
 }
 
-fn compile_single_object(target: &OsStr, target_path: PathBuf, build_path: PathBuf) -> String {
+fn compile_single_object(
+    target: &OsStr,
+    target_path: PathBuf,
+    build_path: PathBuf,
+) -> anyhow::Result<String> {
     // path to generated .o in the .pronto folder
-    let object_file_path =
-        compile_to_object_with_dependencies(target_path, build_path)
-            .expect("Could not use gcc for target.");
+    // A gcc failure here is a user code error (GccError), propagated as-is
+    // so main() can render it without the GitHub footer.
+    let object_file_path = compile_to_object_with_dependencies(target_path, build_path)?;
     let path_str = object_file_path
         .to_str()
-        .expect("Invalid UTF-8")
+        .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 in object path"))?
         .to_string();
-    println!("Compiling {}...", target.to_str().unwrap());
-    path_str
+    println!("Compiling {}...", target.to_str().unwrap_or("?"));
+    Ok(path_str)
 }
 
 pub fn compile_object_recursively(
     target_path: PathBuf,
     build_path: PathBuf,
     visited: &mut HashSet<PathBuf>,
-) -> Vec<String> {
+) -> anyhow::Result<Vec<String>> {
     if visited.contains(&target_path) {
-        return Vec::new();
+        return Ok(Vec::new());
     }
     visited.insert(target_path.clone());
     let target = target_path.file_name().unwrap();
@@ -52,13 +56,19 @@ pub fn compile_object_recursively(
 
     // if c file has been modified since .o has been created
     if needs_recompilation(target_path.clone(), target_file_o.clone(), target_file_d.clone()) {
-        let path_str = compile_single_object(target, target_path.to_path_buf(), build_path.to_path_buf());
+        let path_str =
+            compile_single_object(target, target_path.to_path_buf(), build_path.to_path_buf())?;
         objects.push(path_str);
     } else {
-        objects.push(target_file_o.to_str().expect("Invalid UTF-8").to_string());
+        objects.push(
+            target_file_o
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 in object path"))?
+                .to_string(),
+        );
         println!(
             "{} has not changed, no need to recompile.",
-            target.to_str().unwrap()
+            target.to_str().unwrap_or("?")
         )
     }
 
@@ -71,12 +81,12 @@ pub fn compile_object_recursively(
                         file: _,
                         source_file,
                     } => {
-                        if source_file.is_some() {
+                        if let Some(source_file) = source_file {
                             objects.append(&mut compile_object_recursively(
-                                source_file.unwrap(),
+                                source_file,
                                 build_path.clone(),
                                 visited,
-                            ));
+                            )?);
                         }
                     }
                     _ => {}
@@ -88,5 +98,5 @@ pub fn compile_object_recursively(
         }
     }
 
-    objects
+    Ok(objects)
 }

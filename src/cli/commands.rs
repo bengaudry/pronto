@@ -24,8 +24,54 @@ pub fn handle_compile(target: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn handle_run(target: String) -> anyhow::Result<()> {
-    let executable_path = link_target(target)?;
+fn resolve_run_target(target: Option<String>) -> anyhow::Result<String> {
+    // Explicit file path: use it as-is (link_target will validate it).
+    if let Some(t) = target {
+        let p = Path::new(&t);
+        if p.is_file() {
+            return Ok(t);
+        }
+        if p.is_dir() {
+            let candidate = p.join("main.c");
+            if candidate.is_file() {
+                return Ok(candidate.to_string_lossy().to_string());
+            }
+            // `pronto run .` in a src-layout project: try ./src/main.c
+            if t == "." || t == "./" {
+                let nested = p.join("src").join("main.c");
+                if nested.is_file() {
+                    return Ok(nested.to_string_lossy().to_string());
+                }
+            }
+            anyhow::bail!(
+                "No main.c found in '{}'. Please specify a file: pronto run <file.c>",
+                t
+            );
+        }
+        // Non-existent path: keep a clear error instead of delegating to the linker.
+        if t.ends_with(".c") {
+            anyhow::bail!("File not found: '{}'. Please specify an existing .c file.", t);
+        }
+        anyhow::bail!(
+            "'{}' is not a file or directory. Please specify a file: pronto run <file.c>",
+            t
+        );
+    }
+
+    // No argument: conventional locations.
+    for candidate in ["main.c", "src/main.c"] {
+        if Path::new(candidate).is_file() {
+            return Ok(candidate.to_string());
+        }
+    }
+    anyhow::bail!(
+        "run expects at least one argument (the path of the c file to run). No main.c found in ./main.c or ./src/main.c."
+    );
+}
+
+pub fn handle_run(target: Option<String>, program_args: Vec<String>) -> anyhow::Result<()> {
+    let resolved = resolve_run_target(target)?;
+    let executable_path = link_target(resolved)?;
     println!("\n===== PROGRAM OUTPUT =====\n");
 
     // Use inherit() so the child shares the terminal's stdin/stdout/stderr.
@@ -33,7 +79,9 @@ pub fn handle_run(target: String) -> anyhow::Result<()> {
     // - Command::output() pipes stdin as closed (EOF) and buffers output
     //   until the child exits, so scanf immediately gets EOF and prompts are invisible.
     // - inherit() forwards the TTY directly, no buffering, input works.
+    // Program args after `--` are forwarded verbatim (e.g. `pronto run main.c -- foo`).
     let status = Command::new(format!("./{}", executable_path.display()))
+        .args(program_args)
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

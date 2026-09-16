@@ -20,7 +20,8 @@ pub fn link_target(target: String) -> anyhow::Result<PathBuf> {
 
     let target_path = Path::new(&target);
 
-    let mut objects = compile_object_recursively(target_path.to_path_buf(), build_path, &mut HashSet::new());
+    let mut objects =
+        compile_object_recursively(target_path.to_path_buf(), build_path, &mut HashSet::new())?;
 
     // Build final executable
     let executable_path = target_path.with_extension("");
@@ -31,7 +32,8 @@ pub fn link_target(target: String) -> anyhow::Result<PathBuf> {
             .ok_or_else(|| anyhow::anyhow!("Could not convert path into string"))?
             .to_string(),
     );
-    invoke_gcc(objects).map_err(|e| anyhow::anyhow!("{}", e))?;
+    // GccError propagates untouched so main() can detect it via downcast.
+    invoke_gcc(objects)?;
     add_executable(executable_path.to_path_buf());
     println!("\nBuilt executable at path : {:?}", executable_path);
 

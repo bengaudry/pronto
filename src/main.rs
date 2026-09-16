@@ -3,6 +3,7 @@ use std::{env, panic};
 use pronto::cli::args::{CliContext, parse_args};
 use pronto::cli::commands;
 use pronto::cli::ui::{BOLD, RED, RESET, YELLOW};
+use pronto::toolchain::gcc::GccError;
 use pronto::version::is_update_available;
 
 fn install_panic_hook() {
@@ -28,7 +29,7 @@ fn run() -> anyhow::Result<()> {
     match cli_context {
         CliContext::Init => commands::handle_init()?,
         CliContext::Compile { target } => commands::handle_compile(target)?,
-        CliContext::Run { target } => commands::handle_run(target)?,
+        CliContext::Run { target, program_args } => commands::handle_run(target, program_args)?,
         CliContext::Version => commands::handle_version()?,
         CliContext::Clean => commands::handle_clean()?,
         CliContext::FullClean => commands::handle_full_clean()?,
@@ -43,6 +44,14 @@ fn main() {
     install_panic_hook();
 
     if let Err(e) = run() {
+        // gcc failures are user code errors, not pronto bugs:
+        // show gcc's stderr directly, without the GitHub footer.
+        let gcc_err = e.chain().find_map(|c| c.downcast_ref::<GccError>());
+        if let Some(gcc_err) = gcc_err {
+            eprintln!("\n{}{}🛑 [GCC Error]{}\n{}\n", RED, BOLD, RESET, gcc_err);
+            std::process::exit(1);
+        }
+
         eprintln!("\n{}{}🛑 [Pronto Error]{}\n{:#}\n", RED, BOLD, RESET, e);
         eprintln!(
             "If this persists, please open an issue on GitHub (https://github.com/bengaudry/pronto/issues/new).\n"

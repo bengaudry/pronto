@@ -1,6 +1,31 @@
-use std::io::{Error, ErrorKind};
+use std::fmt;
 use std::path::PathBuf;
 use std::process::Command;
+
+/// A gcc invocation that exited with a non-zero status (i.e. a compile/link
+/// error in the user's C code). This is *not* a pronto bug, so callers must
+/// surface it without the "open a GitHub issue" footer.
+#[derive(Debug)]
+pub struct GccError {
+    pub code: Option<i32>,
+    pub stderr: String,
+}
+
+impl fmt::Display for GccError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let stderr = self.stderr.trim();
+        if stderr.is_empty() {
+            match self.code {
+                Some(code) => write!(f, "gcc failed with exit code {}", code),
+                None => write!(f, "gcc failed"),
+            }
+        } else {
+            write!(f, "{}", stderr)
+        }
+    }
+}
+
+impl std::error::Error for GccError {}
 
 pub fn is_gcc_available() -> bool {
     let check_cmd_status = Command::new("gcc")
@@ -11,21 +36,18 @@ pub fn is_gcc_available() -> bool {
     check_cmd_status.success()
 }
 
-pub fn invoke_gcc(args: Vec<String>) -> Result<(), Error> {
-    let output = Command::new("gcc").args(args).output()?;
+pub fn invoke_gcc(args: Vec<String>) -> anyhow::Result<()> {
+    let output = Command::new("gcc")
+        .args(&args)
+        .output()
+        .map_err(|e| anyhow::anyhow!("Failed to spawn gcc: {}", e))?;
 
     if !output.status.success() {
-        let code = output.status.code().unwrap_or(101);
-
-        let stderr_msg = String::from_utf8_lossy(&output.stderr);
-
-        return Err(Error::new(
-            ErrorKind::Other,
-            format!(
-                "GCC failed with code {}.\nDetails :\n{}",
-                code, stderr_msg
-            ),
-        ));
+        return Err(GccError {
+            code: output.status.code(),
+            stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        }
+        .into());
     }
 
     Ok(())
@@ -34,7 +56,7 @@ pub fn invoke_gcc(args: Vec<String>) -> Result<(), Error> {
 pub fn compile_to_object_with_dependencies(
     target_path: PathBuf,
     build_path: PathBuf,
-) -> Result<PathBuf, Error> {
+) -> anyhow::Result<PathBuf> {
     // Create the path to the mirrored target in the .pronto dir
     let target_path_in_build_dir = build_path.join(&target_path);
     let target_file_o = target_path_in_build_dir.with_extension("o");
