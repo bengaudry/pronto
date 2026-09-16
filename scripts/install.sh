@@ -9,7 +9,6 @@ echo "Checking system compatibility..."
 OS=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 
-# Map OS and Architecture to your GitHub Release asset names
 case "$OS" in
     darwin)
         TARGET_OS="apple-darwin"
@@ -36,13 +35,11 @@ case "$ARCH" in
         ;;
 esac
 
-# Construct the expected binary asset name (e.g., pronto-x86_64-apple-darwin)
 ASSET_NAME="${BINARY_NAME}-${TARGET_ARCH}-${TARGET_OS}"
 URL="https://github.com/${REPO}/releases/latest/download/${ASSET_NAME}"
 
 echo "Downloading ${BINARY_NAME} from ${URL}..."
 
-# Download to a temporary location
 TMP_DIR=$(mktemp -d)
 cd "$TMP_DIR"
 
@@ -53,19 +50,26 @@ else
     exit 1
 fi
 
-# Move to target binary directory
-INSTALL_DIR="/usr/local/bin"
-echo "Installing to ${INSTALL_DIR}/${BINARY_NAME} (may require sudo)..."
+# Target user directory (no root required)
+INSTALL_DIR="${HOME}/.local/bin"
+mkdir -p "$INSTALL_DIR"
 
-if [ -w "$INSTALL_DIR" ]; then
-    mv "$BINARY_NAME" "${INSTALL_DIR}/${BINARY_NAME}"
-else
-    sudo mv "$BINARY_NAME" "${INSTALL_DIR}/${BINARY_NAME}"
-fi
+echo "Installing to ${INSTALL_DIR}/${BINARY_NAME}..."
+mv "$BINARY_NAME" "${INSTALL_DIR}/${BINARY_NAME}"
 
 # Clean up
 cd - > /dev/null
 rm -rf "$TMP_DIR"
 
 echo "Successfully installed ${BINARY_NAME}!"
+
+# Warn if directory is not reachable via PATH
+case ":$PATH:" in
+    *":${INSTALL_DIR}:"*) ;;
+    *)
+        echo "Notice: ${INSTALL_DIR} is not in your PATH."
+        echo "Add it to your shell profile: export PATH=\"${INSTALL_DIR}:\$PATH\""
+        ;;
+esac
+
 echo "Run '${BINARY_NAME} --help' to verify the installation."
