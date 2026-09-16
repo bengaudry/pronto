@@ -39,7 +39,7 @@ pub fn link_target(target: String, cflags: &[String]) -> anyhow::Result<PathBuf>
     );
     // GccError propagates untouched so main() can detect it via downcast.
     invoke_gcc(objects)?;
-    add_executable(executable_path.to_path_buf());
+    add_executable(executable_path.to_path_buf(), Some(target_path))?;
     println!("\nBuilt executable at path : {:?}", executable_path);
 
     Ok(executable_path)
