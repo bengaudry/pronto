@@ -2,7 +2,7 @@ use crate::build_dir::{clean::clean_executables, linker::link_target};
 use crate::project::gitignore::ensure_ignored_in_gitignore;
 use crate::version::{get_pronto_version, is_update_available, update_pronto};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use crate::cli::ui::HELP_TEXT;
 use crate::project::{ensure_build_dir, PRONTO_DIR};
 
@@ -27,14 +27,25 @@ pub fn handle_compile(target: String) -> anyhow::Result<()> {
 pub fn handle_run(target: String) -> anyhow::Result<()> {
     let executable_path = link_target(target)?;
     println!("\n===== PROGRAM OUTPUT =====\n");
-    let output = Command::new(format!("./{}", executable_path.to_str().unwrap()))
-        .output()
+
+    // Use inherit() so the child shares the terminal's stdin/stdout/stderr.
+    // This is required for interactive programs (scanf, getchar, etc.):
+    // - Command::output() pipes stdin as closed (EOF) and buffers output
+    //   until the child exits, so scanf immediately gets EOF and prompts are invisible.
+    // - inherit() forwards the TTY directly, no buffering, input works.
+    let status = Command::new(format!("./{}", executable_path.display()))
+        .stdin(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .status()
         .map_err(|e| anyhow::anyhow!("Failed to run program: {}", e))?;
 
-    print!("{}", String::from_utf8_lossy(&output.stdout));
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Program failed :\n{}", stderr);
+    if !status.success() {
+        if let Some(code) = status.code() {
+            anyhow::bail!("Program exited with code {}", code);
+        } else {
+            anyhow::bail!("Program terminated by signal");
+        }
     }
 
     Ok(())

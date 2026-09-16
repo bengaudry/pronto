@@ -51,7 +51,7 @@ pub fn compile_object_recursively(
     let mut objects: Vec<String> = Vec::new();
 
     // if c file has been modified since .o has been created
-    if needs_recompilation(target_path_in_build_dir.clone(), target_file_o.clone(), target_file_d.clone()) {
+    if needs_recompilation(target_path.clone(), target_file_o.clone(), target_file_d.clone()) {
         let path_str = compile_single_object(target, target_path.to_path_buf(), build_path.to_path_buf());
         objects.push(path_str);
     } else {
