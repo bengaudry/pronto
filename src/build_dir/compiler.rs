@@ -1,11 +1,15 @@
+use crate::build_dir::cache::is_source_newer_than_artifact;
+use crate::build_dir::dependencies::{Dependency, parse_dot_d_dependencies};
+use crate::toolchain::gcc::compile_to_object_with_dependencies;
 use std::collections::HashSet;
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use crate::build_dir::cache::is_source_newer_than_artifact;
-use crate::toolchain::gcc::{compile_to_object_with_dependencies};
-use crate::build_dir::dependencies::{Dependency, parse_dot_d_dependencies};
 
-fn needs_recompilation(target_path: PathBuf, target_file_o: PathBuf, target_file_d: PathBuf) -> bool {
+fn needs_recompilation(
+    target_path: PathBuf,
+    target_file_o: PathBuf,
+    target_file_d: PathBuf,
+) -> bool {
     // Check if .o and .d already exists, and if the source .c file has been modified since
     let mut is_newer = true;
     if target_file_o.is_file() && target_file_d.is_file() {
@@ -23,11 +27,12 @@ fn compile_single_object(
     target: &OsStr,
     target_path: PathBuf,
     build_path: PathBuf,
+    cflags: &[String],
 ) -> anyhow::Result<String> {
     // path to generated .o in the .pronto folder
     // A gcc failure here is a user code error (GccError), propagated as-is
     // so main() can render it without the GitHub footer.
-    let object_file_path = compile_to_object_with_dependencies(target_path, build_path)?;
+    let object_file_path = compile_to_object_with_dependencies(target_path, build_path, cflags)?;
     let path_str = object_file_path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("Invalid UTF-8 in object path"))?
@@ -40,6 +45,7 @@ pub fn compile_object_recursively(
     target_path: PathBuf,
     build_path: PathBuf,
     visited: &mut HashSet<PathBuf>,
+    cflags: &[String],
 ) -> anyhow::Result<Vec<String>> {
     if visited.contains(&target_path) {
         return Ok(Vec::new());
@@ -54,10 +60,22 @@ pub fn compile_object_recursively(
 
     let mut objects: Vec<String> = Vec::new();
 
-    // if c file has been modified since .o has been created
-    if needs_recompilation(target_path.clone(), target_file_o.clone(), target_file_d.clone()) {
-        let path_str =
-            compile_single_object(target, target_path.to_path_buf(), build_path.to_path_buf())?;
+    // if c file has been modified since .o has been created.
+    // Note: any non-empty cflags force recompilation, since the cache does
+    // not track which flags produced the existing .o files.
+    if !cflags.is_empty()
+        || needs_recompilation(
+            target_path.clone(),
+            target_file_o.clone(),
+            target_file_d.clone(),
+        )
+    {
+        let path_str = compile_single_object(
+            target,
+            target_path.to_path_buf(),
+            build_path.to_path_buf(),
+            cflags,
+        )?;
         objects.push(path_str);
     } else {
         objects.push(
@@ -86,6 +104,7 @@ pub fn compile_object_recursively(
                                 source_file,
                                 build_path.clone(),
                                 visited,
+                                cflags,
                             )?);
                         }
                     }

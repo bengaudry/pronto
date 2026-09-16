@@ -1,0 +1,12 @@
+# TASKS — Pronto
+                                                                                                                                                                                                                   
+## P0 (bloquant) — 7 tâches                                                                                                                                                                                      
+                                                                                                                                                                                                                   
+1. src/build_dir/cache.rs:12 : remplacer expect par ?, passer &Path au lieu de PathBuf, gérer modified() sans panic.                                                                                          
+2. src/project/executables.rs:11,18,32,44 : supprimer 5 panic, retourner anyhow::Result, stocker chemins relatifs au find_project_root src/project/mod.rs:11,                                                 
+   corriger get_executables_list_file_path pour utiliser resolve_pronto_dir, ajouter lock.                                                                                                                    
+3. src/toolchain/gcc.rs:18 : is_gcc_available sans expect, gérer NotFound proprement, cache résultat.                                                                                                         
+4. src/cli/args.rs:42-103 : factoriser ensure_no_program_args(), corriger cli_args.len()>3 → Unknown command, fixer clean --full alias, ajouter tests unitaires                                               
+   parse_args.                                                                                                                                                                                                
+5. src/cli/commands.rs:83 : Command::new(executable_path) direct (pas format!("./{}",display)), src/cli/commands.rs:11 handle_init matcher AlreadyExists uniquement, propager 128+signal pour status.code()==None.                                                                                                                                                  
+6. src/build_dir/compiler.rs:48,51 : fixer file_name().unwrap() + build_path.join(abs_path) via strip_prefix/relative, implémenter les 2 TODO (clean corrompu, parse .d error).

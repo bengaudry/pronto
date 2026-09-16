@@ -56,6 +56,7 @@ pub fn invoke_gcc(args: Vec<String>) -> anyhow::Result<()> {
 pub fn compile_to_object_with_dependencies(
     target_path: PathBuf,
     build_path: PathBuf,
+    cflags: &[String],
 ) -> anyhow::Result<PathBuf> {
     // Create the path to the mirrored target in the .pronto dir
     let target_path_in_build_dir = build_path.join(&target_path);
@@ -63,12 +64,13 @@ pub fn compile_to_object_with_dependencies(
     let parent_dir = target_file_o.parent().expect("Could not get parent dir");
     std::fs::create_dir_all(parent_dir).expect("Could not create subdirectories");
 
-    return invoke_gcc(Vec::from([
-        "-MMD".to_string(),
+    let mut gcc_args = Vec::from(["-MMD".to_string()]);
+    gcc_args.extend(cflags.iter().cloned());
+    gcc_args.extend(Vec::from([
         target_path.to_str().expect("").to_string(),
         "-c".to_string(),
         "-o".to_string(),
         target_file_o.to_str().expect("").to_string(),
-    ]))
-    .and(Ok(target_file_o));
+    ]));
+    return invoke_gcc(gcc_args).and(Ok(target_file_o));
 }

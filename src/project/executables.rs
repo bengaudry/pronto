@@ -1,7 +1,7 @@
+use crate::project::PRONTO_DIR;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
-use crate::project::PRONTO_DIR;
 
 pub const EXECUTABLES_FILENAME: &str = "executables.txt";
 
@@ -32,7 +32,10 @@ pub fn add_executable(executable_path: PathBuf) {
     let mut executables_list = load_executables_registry();
 
     if !executable_path.is_file() {
-        panic!("Could not find executable file at {}", executable_path.display());
+        panic!(
+            "Could not find executable file at {}",
+            executable_path.display()
+        );
     }
 
     if !executables_list.contains(&executable_path) {

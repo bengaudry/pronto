@@ -12,8 +12,12 @@ pub fn find_project_root(target_path: Option<&Path>) -> PathBuf {
     let mut current: PathBuf;
 
     match target_path {
-        Some(path) => { current = path.parent().unwrap_or(Path::new(".")).to_path_buf(); },
-        None => { current = Path::new(".").to_path_buf(); }
+        Some(path) => {
+            current = path.parent().unwrap_or(Path::new(".")).to_path_buf();
+        }
+        None => {
+            current = Path::new(".").to_path_buf();
+        }
     }
 
     let initial_path = current.clone();

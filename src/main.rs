@@ -24,17 +24,24 @@ fn install_panic_hook() {
 
 fn run() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
-    let cli_context = parse_args(args).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let cli_context = match parse_args(args) {
+        Ok(ctx) => ctx,
+        // clap handles --help / parse errors itself with correct exit codes.
+        Err(e) => e.exit(),
+    };
 
     match cli_context {
         CliContext::Init => commands::handle_init()?,
-        CliContext::Compile { target } => commands::handle_compile(target)?,
-        CliContext::Run { target, program_args } => commands::handle_run(target, program_args)?,
+        CliContext::Compile { target, cflags } => commands::handle_compile(target, cflags)?,
+        CliContext::Run {
+            target,
+            program_args,
+            cflags,
+        } => commands::handle_run(target, program_args, cflags)?,
         CliContext::Version => commands::handle_version()?,
         CliContext::Clean => commands::handle_clean()?,
         CliContext::FullClean => commands::handle_full_clean()?,
         CliContext::Update => commands::handle_update()?,
-        CliContext::Help => commands::handle_help()?,
     }
 
     Ok(())

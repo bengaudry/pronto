@@ -1,11 +1,11 @@
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
 use crate::build_dir::compiler::compile_object_recursively;
 use crate::project::ensure_build_dir;
 use crate::project::executables::add_executable;
 use crate::toolchain::gcc::{invoke_gcc, is_gcc_available};
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
-pub fn link_target(target: String) -> anyhow::Result<PathBuf> {
+pub fn link_target(target: String, cflags: &[String]) -> anyhow::Result<PathBuf> {
     if !target.ends_with(".c") {
         anyhow::bail!("Expected a C file as argument.");
     }
@@ -20,11 +20,16 @@ pub fn link_target(target: String) -> anyhow::Result<PathBuf> {
 
     let target_path = Path::new(&target);
 
-    let mut objects =
-        compile_object_recursively(target_path.to_path_buf(), build_path, &mut HashSet::new())?;
+    let mut objects = compile_object_recursively(
+        target_path.to_path_buf(),
+        build_path,
+        &mut HashSet::new(),
+        cflags,
+    )?;
 
     // Build final executable
     let executable_path = target_path.with_extension("");
+    objects.extend(cflags.iter().cloned());
     objects.push("-o".to_string());
     objects.push(
         executable_path

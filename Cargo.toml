@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 shadow-rs = "0.36"
 anyhow = "1.0"
+clap = { version = "4", features = ["derive"] }
 
 [build-dependencies]
 shadow-rs = "0.36"

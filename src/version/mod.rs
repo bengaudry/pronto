@@ -1,5 +1,5 @@
-use std::process::{Command, Stdio};
 use crate::build;
+use std::process::{Command, Stdio};
 
 pub fn get_latest_version() -> Option<String> {
     // We fetch the latest release page and configure curl to follow redirects (-L)

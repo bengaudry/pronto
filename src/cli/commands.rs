@@ -1,10 +1,9 @@
 use crate::build_dir::{clean::clean_executables, linker::link_target};
 use crate::project::gitignore::ensure_ignored_in_gitignore;
+use crate::project::{PRONTO_DIR, ensure_build_dir};
 use crate::version::{get_pronto_version, is_update_available, update_pronto};
 use std::path::Path;
 use std::process::{Command, Stdio};
-use crate::cli::ui::HELP_TEXT;
-use crate::project::{ensure_build_dir, PRONTO_DIR};
 
 pub fn handle_init() -> anyhow::Result<()> {
     println!("Initializing pronto project in current directory.");
@@ -19,8 +18,8 @@ pub fn handle_init() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn handle_compile(target: String) -> anyhow::Result<()> {
-    link_target(target)?;
+pub fn handle_compile(target: String, cflags: Vec<String>) -> anyhow::Result<()> {
+    link_target(target, &cflags)?;
     Ok(())
 }
 
@@ -50,7 +49,10 @@ fn resolve_run_target(target: Option<String>) -> anyhow::Result<String> {
         }
         // Non-existent path: keep a clear error instead of delegating to the linker.
         if t.ends_with(".c") {
-            anyhow::bail!("File not found: '{}'. Please specify an existing .c file.", t);
+            anyhow::bail!(
+                "File not found: '{}'. Please specify an existing .c file.",
+                t
+            );
         }
         anyhow::bail!(
             "'{}' is not a file or directory. Please specify a file: pronto run <file.c>",
@@ -69,9 +71,13 @@ fn resolve_run_target(target: Option<String>) -> anyhow::Result<String> {
     );
 }
 
-pub fn handle_run(target: Option<String>, program_args: Vec<String>) -> anyhow::Result<()> {
+pub fn handle_run(
+    target: Option<String>,
+    program_args: Vec<String>,
+    cflags: Vec<String>,
+) -> anyhow::Result<()> {
     let resolved = resolve_run_target(target)?;
-    let executable_path = link_target(resolved)?;
+    let executable_path = link_target(resolved, &cflags)?;
     println!("\n===== PROGRAM OUTPUT =====\n");
 
     // Use inherit() so the child shares the terminal's stdin/stdout/stderr.
@@ -120,10 +126,5 @@ pub fn handle_update() -> anyhow::Result<()> {
         return Ok(());
     }
     update_pronto();
-    Ok(())
-}
-
-pub fn handle_help() -> anyhow::Result<()> {
-    print!("{}", HELP_TEXT);
     Ok(())
 }
