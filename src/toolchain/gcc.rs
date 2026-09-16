@@ -22,7 +22,7 @@ pub fn invoke_gcc(args: Vec<String>) -> Result<(), Error> {
         return Err(Error::new(
             ErrorKind::Other,
             format!(
-                "GCC a échoué avec le code {}.\nDétails :\n{}",
+                "GCC failed with code {}.\nDetails :\n{}",
                 code, stderr_msg
             ),
         ));
