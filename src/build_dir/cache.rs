@@ -8,9 +8,9 @@ pub fn is_source_newer_than_artifact(
     file2_path: PathBuf,
 ) -> Result<bool, Error> {
     let file1_meta = metadata(&file1_path)
-        .expect(&format!("Could not find file {:#?}.", file1_path).to_string());
+        .unwrap_or_else(|_| panic!("Could not find file {:#?}.", file1_path));
     let file2_meta = metadata(&file2_path)
-        .expect(&format!("Could not find file {:#?}.", file2_path).to_string());
+        .unwrap_or_else(|_| panic!("Could not find file {:#?}.", file2_path));
 
     if !file1_meta.is_file() || !file2_meta.is_file() {
         return Err(Error::new(

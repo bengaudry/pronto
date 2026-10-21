@@ -74,23 +74,21 @@ pub fn parse_dot_d_dependencies(dot_d_path: PathBuf) -> Result<Vec<Dependency>, 
                 is_dep_newline = true;
                 break;
             }
-            let dep: Dependency;
-
             let obj_path = PathBuf::from(obj.clone());
-            if obj.ends_with(".c") {
-                dep = Dependency::Source {
+            let dep: Dependency = if obj.ends_with(".c") {
+                Dependency::Source {
                     file: obj_path.clone(),
-                };
+                }
             } else if obj.ends_with(".h") {
                 let source_file = resolve_header_implementation(obj_path.clone());
-                dep = Dependency::Header {
+                Dependency::Header {
                     file: obj_path.clone(),
                     source_file,
-                };
+                }
             } else {
                 println!("{} file is not supported.", obj);
                 continue;
-            }
+            };
             dependencies.push(dep);
         }
     }

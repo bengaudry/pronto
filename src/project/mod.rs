@@ -39,7 +39,7 @@ pub fn find_project_root(target_path: Option<&Path>) -> PathBuf {
             // If we reached the root without finding anything, we consider that the folder containing
             // the .c is the root, or the direct parent folder if it is named "src"
             let default_path = initial_path.parent().unwrap_or(Path::new("."));
-            if default_path.file_name().map_or(false, |name| name == "src") {
+            if default_path.file_name().is_some_and(|name| name == "src") {
                 return default_path.parent().unwrap_or(default_path).to_path_buf();
             }
             return default_path.to_path_buf();
