@@ -1,0 +1,28 @@
+{
+  "name": "pronto",
+  "version": "1.0.0",
+  "description": "A zero-config build system for C projects.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bengaudry/pronto.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/bengaudry/pronto/issues"
+  },
+  "homepage": "https://github.com/bengaudry/pronto#readme",
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

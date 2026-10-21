@@ -11,23 +11,20 @@ pub fn get_executables_list_file_path(target_path: Option<&Path>) -> PathBuf {
     resolve_pronto_dir(target_path).join(EXECUTABLES_FILENAME)
 }
 
-pub fn load_executables_registry(
-    target_path: Option<&Path>,
-) -> anyhow::Result<Vec<PathBuf>> {
+pub fn load_executables_registry(target_path: Option<&Path>) -> anyhow::Result<Vec<PathBuf>> {
     let fp = get_executables_list_file_path(target_path);
     if !fp.exists() || !fp.is_file() {
         return Ok(Vec::new());
     }
 
-    let file = File::open(&fp)
-        .map_err(|e| anyhow::anyhow!("Could not open {}: {}", fp.display(), e))?;
+    let file =
+        File::open(&fp).map_err(|e| anyhow::anyhow!("Could not open {}: {}", fp.display(), e))?;
 
     let mut executables_list: Vec<PathBuf> = Vec::new();
     let reader = BufReader::new(file);
 
     for line in reader.lines() {
-        let line =
-            line.map_err(|e| anyhow::anyhow!("Could not read {}: {}", fp.display(), e))?;
+        let line = line.map_err(|e| anyhow::anyhow!("Could not read {}: {}", fp.display(), e))?;
         let trimmed = line.trim();
         if !trimmed.is_empty() {
             executables_list.push(Path::new(trimmed).to_path_buf());
@@ -37,10 +34,7 @@ pub fn load_executables_registry(
     Ok(executables_list)
 }
 
-pub fn add_executable(
-    executable_path: PathBuf,
-    target_path: Option<&Path>,
-) -> anyhow::Result<()> {
+pub fn add_executable(executable_path: PathBuf, target_path: Option<&Path>) -> anyhow::Result<()> {
     if !executable_path.is_file() {
         anyhow::bail!(
             "Could not find executable file at {}",
@@ -50,7 +44,11 @@ pub fn add_executable(
 
     let mut executables_list = load_executables_registry(target_path)?;
     let canonical = executable_path.canonicalize().map_err(|e| {
-        anyhow::anyhow!("Could not canonicalize {}: {}", executable_path.display(), e)
+        anyhow::anyhow!(
+            "Could not canonicalize {}: {}",
+            executable_path.display(),
+            e
+        )
     })?;
 
     if !executables_list.contains(&canonical) {
@@ -82,9 +80,8 @@ pub fn persist_executables_registry(
     // `.pronto/` itself: make sure the parent exists before File::create,
     // otherwise a missing dir surfaces as "Could not open executables.txt".
     if let Some(parent) = fp.parent() {
-        fs::create_dir_all(parent).map_err(|e| {
-            anyhow::anyhow!("Could not create {}: {}", parent.display(), e)
-        })?;
+        fs::create_dir_all(parent)
+            .map_err(|e| anyhow::anyhow!("Could not create {}: {}", parent.display(), e))?;
     }
 
     let file =

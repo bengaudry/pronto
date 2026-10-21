@@ -1,0 +1,4 @@
+set -e
+
+cargo fmt --check
+cargo check
