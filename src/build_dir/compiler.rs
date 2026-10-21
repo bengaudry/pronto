@@ -96,9 +96,8 @@ pub fn compile_object_recursively(
             for dependency in dependencies {
                 if let Dependency::Header {
                     file: _,
-                    source_file,
+                    source_file: Some(source_file),
                 } = dependency
-                    && let Some(source_file) = source_file
                 {
                     objects.append(&mut compile_object_recursively(
                         source_file,
