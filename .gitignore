@@ -6,7 +6,7 @@
 *.o
 
 # Build files
-test/**/main
+tests/fixtures/**/main
 
 # IDE files
 .idea/
