@@ -98,15 +98,14 @@ pub fn compile_object_recursively(
                     file: _,
                     source_file,
                 } = dependency
+                    && let Some(source_file) = source_file
                 {
-                    if let Some(source_file) = source_file {
-                        objects.append(&mut compile_object_recursively(
-                            source_file,
-                            build_path.clone(),
-                            visited,
-                            cflags,
-                        )?);
-                    }
+                    objects.append(&mut compile_object_recursively(
+                        source_file,
+                        build_path.clone(),
+                        visited,
+                        cflags,
+                    )?);
                 }
             }
         }
