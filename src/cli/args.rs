@@ -21,7 +21,7 @@ pub enum CliContext {
 #[derive(Parser, Debug)]
 #[command(
     name = "pronto",
-    about = "A lightning-fast, zero-config build system for C projects.",
+    about = "A zero-config build system for C projects.",
     disable_version_flag = true
 )]
 struct Cli {
