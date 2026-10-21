@@ -72,5 +72,5 @@ pub fn compile_to_object_with_dependencies(
         "-o".to_string(),
         target_file_o.to_str().expect("").to_string(),
     ]));
-    return invoke_gcc(gcc_args).and(Ok(target_file_o));
+    invoke_gcc(gcc_args).and(Ok(target_file_o))
 }

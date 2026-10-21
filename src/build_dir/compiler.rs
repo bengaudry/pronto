@@ -94,21 +94,17 @@ pub fn compile_object_recursively(
     match parse_dot_d_dependencies(target_file_d) {
         Ok(dependencies) => {
             for dependency in dependencies {
-                match dependency {
-                    Dependency::Header {
-                        file: _,
+                if let Dependency::Header {
+                    file: _,
+                    source_file: Some(source_file),
+                } = dependency
+                {
+                    objects.append(&mut compile_object_recursively(
                         source_file,
-                    } => {
-                        if let Some(source_file) = source_file {
-                            objects.append(&mut compile_object_recursively(
-                                source_file,
-                                build_path.clone(),
-                                visited,
-                                cflags,
-                            )?);
-                        }
-                    }
-                    _ => {}
+                        build_path.clone(),
+                        visited,
+                        cflags,
+                    )?);
                 }
             }
         }

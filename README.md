@@ -166,6 +166,23 @@ cargo clippy --all-targets
 cargo fmt --check
 ```
 
+### Pre-commit hooks
+
+This project uses [Husky](https://typicode.github.io/husky/) to run checks before each commit. After cloning, install the Git hooks with:
+
+```bash
+npm install
+```
+
+The pre-commit hook runs:
+
+```bash
+cargo fmt --check
+cargo check
+```
+
+If either check fails, the commit is aborted.
+
 ---
 
 ## Requirements

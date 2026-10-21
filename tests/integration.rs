@@ -18,7 +18,12 @@ fn pronto_bin() -> &'static str {
 /// inside the repo would place `.pronto` at the repository root.
 fn copy_fixture(name: &str) -> tempfile::TempDir {
     let src = Path::new(FIXTURES_DIR).join(name);
-    assert!(src.is_dir(), "fixture {} not found at {}", name, src.display());
+    assert!(
+        src.is_dir(),
+        "fixture {} not found at {}",
+        name,
+        src.display()
+    );
 
     let tmp = tempfile::tempdir().expect("failed to create temp dir");
     copy_dir_recursively(&src, tmp.path()).unwrap_or_else(|e| {
@@ -67,12 +72,7 @@ fn run_pronto(dir: &Path, args: &[&str]) -> Output {
 /// Run the compiled executable at `relative_path` inside `dir` and capture its
 /// output. `args` are forwarded to the program. If `input` is provided it is
 /// written to the child's stdin.
-fn run_executable(
-    dir: &Path,
-    relative_path: &str,
-    args: &[&str],
-    input: Option<&str>,
-) -> Output {
+fn run_executable(dir: &Path, relative_path: &str, args: &[&str], input: Option<&str>) -> Output {
     let exe = dir.join(relative_path);
     let mut cmd = Command::new(&exe);
     cmd.current_dir(dir).args(args);

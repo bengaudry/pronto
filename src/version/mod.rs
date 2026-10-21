@@ -16,21 +16,21 @@ pub fn get_latest_version() -> Option<String> {
         ])
         .output();
 
-    if let Ok(out) = output {
-        if out.status.success() {
-            let url = String::from_utf8_lossy(&out.stdout);
-            // The URL looks like: https://github.com/bengaudry/pronto/releases/tag/v1.1.0
-            // We split by the last slash to isolate the tag "v1.1.0"
-            if let Some(tag) = url.trim().split('/').last() {
-                return Some(tag.to_string());
-            }
+    if let Ok(out) = output
+        && out.status.success()
+    {
+        let url = String::from_utf8_lossy(&out.stdout);
+        // The URL looks like: https://github.com/bengaudry/pronto/releases/tag/v1.1.0
+        // We split by the last slash to isolate the tag "v1.1.0"
+        if let Some(tag) = url.trim().split('/').next_back() {
+            return Some(tag.to_string());
         }
     }
     None
 }
 
 pub fn update_pronto() {
-    let curl_proc = Command::new("curl")
+    let mut curl_proc = Command::new("curl")
         .args(["-sSfL", "https://raw.githubusercontent.com/bengaudry/pronto/refs/heads/master/scripts/install.sh"])
         .stdout(Stdio::piped())
         .spawn()
@@ -38,11 +38,12 @@ pub fn update_pronto() {
 
     // 2. Start the sh process and set its stdin to capture curl's stdout
     let sh_proc = Command::new("sh")
-        .stdin(curl_proc.stdout.unwrap()) // Take ownership of curl's stdout pipe
+        .stdin(curl_proc.stdout.take().unwrap()) // Take ownership of curl's stdout pipe
         .output()
         .expect("Failed to execute sh");
 
-    // 3. Print out result
+    // 3. Wait for curl to finish and print out result
+    let _ = curl_proc.wait();
     if sh_proc.status.success() {
         println!("Installation complete!");
         println!("{}", String::from_utf8_lossy(&sh_proc.stdout));
