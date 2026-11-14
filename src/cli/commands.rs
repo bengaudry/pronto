@@ -1,6 +1,7 @@
 use crate::build_dir::{clean::clean_executables, linker::link_target};
 use crate::project::gitignore::ensure_ignored_in_gitignore;
 use crate::project::{PRONTO_DIR, ensure_build_dir};
+use crate::toolchain::valgrind::is_valgrind_available;
 use crate::version::{get_pronto_version, is_update_available, update_pronto};
 use std::path::Path;
 use std::process::{Command, Stdio};
@@ -73,11 +74,17 @@ fn resolve_run_target(target: Option<String>) -> anyhow::Result<String> {
 
 pub fn handle_run(
     target: Option<String>,
+    memcheck: bool,
     program_args: Vec<String>,
     cflags: Vec<String>,
 ) -> anyhow::Result<()> {
     let resolved = resolve_run_target(target)?;
     let executable_path = link_target(resolved, &cflags)?;
+
+    if memcheck && !is_valgrind_available() {
+        anyhow::bail!("valgrind needs to be installed in order to run with the --memcheck flag.");
+    }
+
     println!("\n===== PROGRAM OUTPUT =====\n");
 
     // Use inherit() so the child shares the terminal's stdin/stdout/stderr.
@@ -86,8 +93,21 @@ pub fn handle_run(
     //   until the child exits, so scanf immediately gets EOF and prompts are invisible.
     // - inherit() forwards the TTY directly, no buffering, input works.
     // Program args after `--` are forwarded verbatim (e.g. `pronto run main.c -- foo`).
-    let status = Command::new(format!("./{}", executable_path.display()))
-        .args(program_args)
+
+    let mut args = program_args.clone();
+
+    if memcheck {
+        args.insert(0, format!("./{}", executable_path.display()))
+    }
+
+    let mut cmd = if memcheck {
+        Command::new("valgrind")
+    } else {
+        Command::new(format!("./{}", executable_path.display()))
+    };
+
+    let status = cmd
+        .args(args)
         .stdin(Stdio::inherit())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())

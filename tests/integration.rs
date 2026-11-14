@@ -53,12 +53,20 @@ fn copy_dir_recursively(src: &Path, dst: &Path) -> std::io::Result<()> {
 }
 
 /// Run the `pronto` binary in the given working directory with the supplied
-/// arguments and capture its output.
-fn run_pronto(dir: &Path, args: &[&str]) -> Output {
-    Command::new(pronto_bin())
-        .args(args)
-        .current_dir(dir)
-        .output()
+/// arguments and capture its output. If `input` is provided it is written to
+/// the child's stdin (useful for testing interactive programs via `run`).
+fn run_pronto(dir: &Path, args: &[&str], input: Option<&str>) -> Output {
+    let mut cmd = Command::new(pronto_bin());
+    cmd.args(args).current_dir(dir);
+
+    if input.is_some() {
+        cmd.stdin(Stdio::piped());
+    }
+
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .unwrap_or_else(|e| {
             panic!(
                 "failed to execute pronto {:?} in {}: {}",
@@ -66,7 +74,20 @@ fn run_pronto(dir: &Path, args: &[&str]) -> Output {
                 dir.display(),
                 e
             )
-        })
+        });
+
+    if let Some(data) = input {
+        child
+            .stdin
+            .take()
+            .expect("stdin was requested but is not available")
+            .write_all(data.as_bytes())
+            .expect("failed to write to pronto stdin");
+    }
+
+    child
+        .wait_with_output()
+        .unwrap_or_else(|e| panic!("failed to wait for pronto {:?}: {}", args, e))
 }
 
 /// Run the compiled executable at `relative_path` inside `dir` and capture its
@@ -142,7 +163,7 @@ fn assert_failure(output: &Output, context: &str) {
 #[test]
 fn hello_world_compiles_and_runs() {
     let dir = copy_fixture("1-hello-world");
-    let out = run_pronto(dir.path(), &["main.c"]);
+    let out = run_pronto(dir.path(), &["main.c"], None);
     assert_success(&out, "pronto main.c");
 
     let exe = run_executable(dir.path(), "main", &[], None);
@@ -153,7 +174,7 @@ fn hello_world_compiles_and_runs() {
 #[test]
 fn header_only_compiles_and_runs() {
     let dir = copy_fixture("2-header-only");
-    let out = run_pronto(dir.path(), &["compile", "main.c"]);
+    let out = run_pronto(dir.path(), &["compile", "main.c"], None);
     assert_success(&out, "pronto compile main.c");
 
     let exe = run_executable(dir.path(), "main", &[], None);
@@ -169,7 +190,7 @@ fn header_only_compiles_and_runs() {
 #[test]
 fn header_include_compiles_and_runs() {
     let dir = copy_fixture("3-header-include");
-    let out = run_pronto(dir.path(), &["build", "main.c"]);
+    let out = run_pronto(dir.path(), &["build", "main.c"], None);
     assert_success(&out, "pronto build main.c");
 
     let exe = run_executable(dir.path(), "main", &[], None);
@@ -180,7 +201,7 @@ fn header_include_compiles_and_runs() {
 #[test]
 fn multi_file_compiles_and_runs() {
     let dir = copy_fixture("4-multi-file");
-    let out = run_pronto(dir.path(), &["main.c"]);
+    let out = run_pronto(dir.path(), &["main.c"], None);
     assert_success(&out, "pronto main.c (multi-file)");
 
     let exe = run_executable(dir.path(), "main", &[], None);
@@ -192,7 +213,7 @@ fn multi_file_compiles_and_runs() {
 #[test]
 fn nested_src_layout_compiles_and_runs() {
     let dir = copy_fixture("5-nested");
-    let out = run_pronto(dir.path(), &["compile", "src/main.c"]);
+    let out = run_pronto(dir.path(), &["compile", "src/main.c"], None);
     assert_success(&out, "pronto compile src/main.c");
 
     let exe = run_executable(dir.path(), "src/main", &[], None);
@@ -204,27 +225,21 @@ fn nested_src_layout_compiles_and_runs() {
 #[test]
 fn scanf_program_runs_with_piped_input() {
     let dir = copy_fixture("6-scanf");
-    let out = run_pronto(dir.path(), &["main.c"]);
+    let out = run_pronto(dir.path(), &["main.c"], Some("Alice\n30\n"));
     assert_success(&out, "pronto main.c (scanf)");
-
-    let exe = run_executable(dir.path(), "main", &[], Some("Alice\n30\n"));
-    assert_success(&exe, "run scanf");
-    assert_stdout_contains(&exe, "Hello Alice, you are 30\n", "scanf output");
+    assert_stdout_contains(&out, "Hello Alice, you are 30\n", "scanf output");
 }
 
 #[test]
 fn with_args_forwards_arguments() {
     let dir = copy_fixture("7-with-args");
-    let out = run_pronto(dir.path(), &["main.c"]);
-    assert_success(&out, "pronto main.c (with-args)");
-
-    let no_args = run_executable(dir.path(), "main", &[], None);
+    let no_args = run_pronto(dir.path(), &["main.c"], None);
     // Running without args exits with code 1.
-    assert_failure(&no_args, "with-args without arguments should fail");
+    assert_failure(&no_args, "pronto main.c without arguments should fail");
     assert_stdout_contains(&no_args, "Usage:", "with-args usage");
 
-    let with_args = run_executable(dir.path(), "main", &["World"], None);
-    assert_success(&with_args, "with-args with argument");
+    let with_args = run_pronto(dir.path(), &["main.c", "--", "World"], None);
+    assert_success(&with_args, "pronto main.c with arguments");
     assert_stdout_contains(&with_args, "Hello, World!\n", "with-args output");
     assert_stdout_contains(&with_args, "argv[1]=World", "with-args argv");
 }
@@ -232,7 +247,7 @@ fn with_args_forwards_arguments() {
 #[test]
 fn transitive_dependencies_compiles_and_runs() {
     let dir = copy_fixture("8-transitive");
-    let out = run_pronto(dir.path(), &["main.c"]);
+    let out = run_pronto(dir.path(), &["main.c"], None);
     assert_success(&out, "pronto main.c (transitive)");
 
     let exe = run_executable(dir.path(), "main", &[], None);
@@ -243,7 +258,7 @@ fn transitive_dependencies_compiles_and_runs() {
 #[test]
 fn missing_header_fails_to_compile() {
     let dir = copy_fixture("9-error-missing-header");
-    let out = run_pronto(dir.path(), &["main.c"]);
+    let out = run_pronto(dir.path(), &["main.c"], None);
     assert_failure(&out, "pronto main.c (missing header)");
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(

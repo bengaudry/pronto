@@ -66,10 +66,10 @@ int main() {
 Compile and run it:
 
 ```bash
-# Compile a single file
+# Compile and run a single file
 pronto main.c
 
-# Or compile and run in one step
+# Compile and run explicitly
 pronto run main.c
 
 # Run with arguments forwarded to your program
@@ -84,7 +84,7 @@ pronto run main.c -- arg1 arg2
 
 | Command | Alias | Description |
 |---------|-------|-------------|
-| `pronto <file.c>` | — | Shortcut to compile a C file. |
+| `pronto <file.c>` | — | Shortcut to compile and run a C file. |
 | `pronto init` | — | Initialize a Pronto project in the current directory (creates `.pronto/` and adds it to `.gitignore`). |
 | `pronto compile <file.c>` | `pronto build <file.c>` | Compile a C file and its dependencies. |
 | `pronto run [target]` | — | Compile, then execute the program. Forwards everything after `--` to the program. |

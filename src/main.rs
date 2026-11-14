@@ -35,9 +35,10 @@ fn run() -> anyhow::Result<()> {
         CliContext::Compile { target, cflags } => commands::handle_compile(target, cflags)?,
         CliContext::Run {
             target,
+            memcheck,
             program_args,
             cflags,
-        } => commands::handle_run(target, program_args, cflags)?,
+        } => commands::handle_run(target, memcheck, program_args, cflags)?,
         CliContext::Version => commands::handle_version()?,
         CliContext::Clean => commands::handle_clean()?,
         CliContext::FullClean => commands::handle_full_clean()?,
