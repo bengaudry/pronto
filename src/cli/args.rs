@@ -11,6 +11,7 @@ pub enum CliContext {
         target: Option<String>,
         program_args: Vec<String>,
         cflags: Vec<String>,
+        memcheck: bool,
     },
     Clean,
     FullClean,
@@ -28,13 +29,20 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Commands>,
 
-    /// Shortcut for `pronto compile <FILE>`: `pronto <file.c>`
+    /// Shortcut for `pronto run <FILE>`: `pronto <file.c>`
     #[arg(value_name = "FILE")]
     file: Option<String>,
+
+    /// Arguments forwarded to the program (after `--`)
+    #[arg(last = true)]
+    program_args: Vec<String>,
 
     /// Print the compiled Pronto version details
     #[arg(short = 'v', long = "version", global = true)]
     version_flag: bool,
+
+    #[arg(long = "memcheck")]
+    memcheck: bool,
 
     /// Extra flags forwarded to gcc for compile and link steps.
     /// Example: `pronto --cflags "-Wall -O2" main.c`.
@@ -65,6 +73,9 @@ enum Commands {
         /// Arguments forwarded to the program
         #[arg(last = true)]
         program_args: Vec<String>,
+        /// Run with valgrind memcheck
+        #[arg(long = "memcheck")]
+        memcheck: bool,
     },
     /// Remove the produced executables (use --full to also remove .pronto)
     Clean {
@@ -144,8 +155,10 @@ pub fn parse_args(args: Vec<String>) -> Result<CliContext, clap::Error> {
             ));
         }
         if file.ends_with(".c") {
-            return Ok(CliContext::Compile {
-                target: file,
+            return Ok(CliContext::Run {
+                target: Some(file),
+                memcheck: cli.memcheck,
+                program_args: cli.program_args,
                 cflags: resolve_cflags(cli.cflags),
             });
         }
@@ -164,9 +177,11 @@ pub fn parse_args(args: Vec<String>) -> Result<CliContext, clap::Error> {
         }),
         Some(Commands::Run {
             target,
+            memcheck,
             program_args,
         }) => Ok(CliContext::Run {
             target,
+            memcheck,
             program_args,
             cflags: resolve_cflags(cli.cflags),
         }),
@@ -180,13 +195,12 @@ pub fn parse_args(args: Vec<String>) -> Result<CliContext, clap::Error> {
         Some(Commands::FullClean) => Ok(CliContext::FullClean),
         Some(Commands::Update) => Ok(CliContext::Update),
         Some(Commands::Version) => Ok(CliContext::Version),
-        None => {
-            let mut cmd = Cli::command();
-            Err(cmd.error(
-                clap::error::ErrorKind::MissingRequiredArgument,
-                "Missing command. Please run `pronto --help` to know more.",
-            ))
-        }
+        None => Ok(CliContext::Run {
+            target: None,
+            memcheck: cli.memcheck,
+            program_args: cli.program_args,
+            cflags: resolve_cflags(cli.cflags),
+        }),
     }
 }
 
@@ -209,13 +223,58 @@ mod tests {
     }
 
     #[test]
-    fn shortcut_c_file_compiles() {
+    fn shortcut_c_file_runs() {
         // Ensure no CFLAGS leaks in from the environment for deterministic tests.
         let _guard = without_cflags_env();
         assert_eq!(
             parse_args(args(&["pronto", "main.c"])).unwrap(),
-            CliContext::Compile {
-                target: "main.c".to_string(),
+            CliContext::Run {
+                target: Some("main.c".to_string()),
+                memcheck: false,
+                program_args: vec![],
+                cflags: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn shortcut_without_c_file_runs() {
+        // Ensure no CFLAGS leaks in from the environment for deterministic tests.
+        let _guard = without_cflags_env();
+        assert_eq!(
+            parse_args(args(&["pronto"])).unwrap(),
+            CliContext::Run {
+                target: None,
+                memcheck: false,
+                program_args: vec![],
+                cflags: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn shortcut_with_target_and_program_args() {
+        let _guard = without_cflags_env();
+        assert_eq!(
+            parse_args(args(&["pronto", "main.c", "--", "foo", "bar"])).unwrap(),
+            CliContext::Run {
+                target: Some("main.c".to_string()),
+                memcheck: false,
+                program_args: vec!["foo".to_string(), "bar".to_string()],
+                cflags: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn shortcut_without_target_and_program_args() {
+        let _guard = without_cflags_env();
+        assert_eq!(
+            parse_args(args(&["pronto", "--", "foo", "bar"])).unwrap(),
+            CliContext::Run {
+                target: None,
+                memcheck: false,
+                program_args: vec!["foo".to_string(), "bar".to_string()],
                 cflags: vec![],
             }
         );
@@ -247,6 +306,7 @@ mod tests {
             parse_args(args(&["pronto", "run"])).unwrap(),
             CliContext::Run {
                 target: None,
+                memcheck: false,
                 program_args: vec![],
                 cflags: vec![],
             }
@@ -260,7 +320,22 @@ mod tests {
             parse_args(args(&["pronto", "run", "main.c", "--", "foo", "bar"])).unwrap(),
             CliContext::Run {
                 target: Some("main.c".to_string()),
+                memcheck: false,
                 program_args: vec!["foo".to_string(), "bar".to_string()],
+                cflags: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn run_with_target_and_memcheck() {
+        let _guard = without_cflags_env();
+        assert_eq!(
+            parse_args(args(&["pronto", "run", "main.c", "--memcheck"])).unwrap(),
+            CliContext::Run {
+                target: Some("main.c".to_string()),
+                memcheck: true,
+                program_args: vec![],
                 cflags: vec![],
             }
         );
@@ -296,11 +371,6 @@ mod tests {
             parse_args(args(&["pronto", "version"])).unwrap(),
             CliContext::Version
         );
-    }
-
-    #[test]
-    fn missing_command_errors() {
-        assert!(parse_args(args(&["pronto"])).is_err());
     }
 
     #[test]
@@ -347,8 +417,10 @@ mod tests {
     fn cflags_global_flag_with_shortcut() {
         assert_eq!(
             parse_args(args(&["pronto", "--cflags", "-O3", "main.c"])).unwrap(),
-            CliContext::Compile {
-                target: "main.c".to_string(),
+            CliContext::Run {
+                target: Some("main.c".to_string()),
+                memcheck: false,
+                program_args: vec![],
                 cflags: vec!["-O3".to_string()],
             }
         );
@@ -363,6 +435,7 @@ mod tests {
             .unwrap(),
             CliContext::Run {
                 target: Some("main.c".to_string()),
+                memcheck: false,
                 program_args: vec!["foo".to_string()],
                 cflags: vec!["-Wall".to_string()],
             }
