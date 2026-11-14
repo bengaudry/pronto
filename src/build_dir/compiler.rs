@@ -3,6 +3,7 @@ use crate::build_dir::dependencies::{Dependency, parse_dot_d_dependencies};
 use crate::toolchain::gcc::compile_to_object_with_dependencies;
 use std::collections::HashSet;
 use std::ffi::OsStr;
+use std::fs::canonicalize;
 use std::path::PathBuf;
 
 fn needs_recompilation(
@@ -47,14 +48,16 @@ pub fn compile_object_recursively(
     visited: &mut HashSet<PathBuf>,
     cflags: &[String],
 ) -> anyhow::Result<Vec<String>> {
-    if visited.contains(&target_path) {
+    let canonicalized_path = canonicalize(target_path.clone())?;
+
+    if visited.contains(&canonicalized_path) {
         return Ok(Vec::new());
     }
-    visited.insert(target_path.clone());
+    visited.insert(canonicalized_path.clone());
     let target = target_path.file_name().unwrap();
 
     // Path to .o in .pronto dir
-    let target_path_in_build_dir = build_path.join(&target_path);
+    let target_path_in_build_dir = build_path.join(target_path.clone());
     let target_file_o = target_path_in_build_dir.with_extension("o");
     let target_file_d = target_path_in_build_dir.with_extension("d");
 
@@ -72,7 +75,7 @@ pub fn compile_object_recursively(
     {
         let path_str = compile_single_object(
             target,
-            target_path.to_path_buf(),
+            target_path.clone(),
             build_path.to_path_buf(),
             cflags,
         )?;
