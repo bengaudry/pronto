@@ -28,12 +28,12 @@ impl fmt::Display for GccError {
 impl std::error::Error for GccError {}
 
 pub fn is_gcc_available() -> bool {
-    let check_cmd_status = Command::new("gcc")
+    let check_cmd_output = Command::new("gcc")
         .arg("--version")
-        .status()
+        .output()
         .expect("gcc command not found");
 
-    check_cmd_status.success()
+    check_cmd_output.status.success()
 }
 
 pub fn invoke_gcc(args: Vec<String>) -> anyhow::Result<()> {
