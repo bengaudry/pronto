@@ -1,9 +1,9 @@
 pub mod executables;
 pub mod gitignore;
 
-use std::fs;
 use std::io::{Error, ErrorKind};
 use std::path::{Path, PathBuf};
+use std::{fs, process};
 
 const GIT_DIR: &str = ".git";
 pub const PRONTO_DIR: &str = ".pronto";
@@ -54,6 +54,12 @@ pub fn resolve_pronto_dir(target_path: Option<&Path>) -> PathBuf {
 
 pub fn resolve_build_dir(target_path: Option<&Path>) -> PathBuf {
     resolve_pronto_dir(target_path).join("build")
+}
+
+/// Returns the path to the temporary folder that will contain the object files during compilation
+/// The folder will be placed under .pronto/tmp_{pid} to ensure that multiple pronto instances running simultaneously don't collide.
+pub fn resolve_tmp_dir(target_path: Option<&Path>) -> PathBuf {
+    resolve_pronto_dir(target_path).join(format!("tmp_{}", process::id()))
 }
 
 /// Garantit que le répertoire de build `.pronto/build` existe.

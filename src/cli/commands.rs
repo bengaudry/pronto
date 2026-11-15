@@ -1,3 +1,4 @@
+use crate::build_dir::compiler::compile_entry;
 use crate::build_dir::{clean::clean_executables, linker::link_target};
 use crate::project::gitignore::ensure_ignored_in_gitignore;
 use crate::project::{PRONTO_DIR, ensure_build_dir};
@@ -20,7 +21,7 @@ pub fn handle_init() -> anyhow::Result<()> {
 }
 
 pub fn handle_compile(target: String, cflags: Vec<String>) -> anyhow::Result<()> {
-    link_target(target, &cflags)?;
+    compile_entry(target, &cflags)?;
     Ok(())
 }
 
@@ -79,7 +80,7 @@ pub fn handle_run(
     cflags: Vec<String>,
 ) -> anyhow::Result<()> {
     let resolved = resolve_run_target(target)?;
-    let executable_path = link_target(resolved, &cflags)?;
+    let executable_path = compile_entry(resolved, &cflags)?;
 
     if memcheck && !is_valgrind_available() {
         anyhow::bail!("valgrind needs to be installed in order to run with the --memcheck flag.");
