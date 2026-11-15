@@ -1,5 +1,5 @@
+use crate::build_dir::clean::clean_executables;
 use crate::build_dir::compiler::compile_entry;
-use crate::build_dir::{clean::clean_executables, linker::link_target};
 use crate::project::gitignore::ensure_ignored_in_gitignore;
 use crate::project::{PRONTO_DIR, ensure_build_dir};
 use crate::toolchain::valgrind::is_valgrind_available;
